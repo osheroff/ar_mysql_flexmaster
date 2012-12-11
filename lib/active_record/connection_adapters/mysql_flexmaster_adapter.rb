@@ -21,13 +21,54 @@ module ActiveRecord
       class NoActiveMasterException < Exception; end
 
       def initialize(logger, config)
+        @tx_nest_count = 0
         @config = config
+        @tx_hold_timeout = @config[:tx_hold_timeout] || 5
         connection = find_active_master
         raise NoActiveMasterException unless connection
         super(connection, logger, [], config)
       end
 
+
+      def begin_db_transaction
+        if !cx_rw? && @tx_nest_count == 0
+          refind_active_master
+        end
+        super
+        @tx_nest_count += 1
+      end
+
+      def commit_db_transaction
+        super
+        @tx_nest_count -= 1
+      end
+
+      def rollback_db_transaction
+        super
+        @tx_nest_count -= 1
+      end
+
+      def execute(sql, name = nil)
+        if @tx_nest_count == 0 && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/
+          refind_active_master
+        end
+
+        super
+      end
+
       private
+      def refind_active_master
+        (@tx_hold_timeout.to_f / 0.1).to_i.times do
+          cx = find_active_master
+          if cx
+            @connection = cx
+            return
+          end
+          sleep(0.1)
+        end
+        raise NoActiveMasterException
+      end
+
       def find_active_master
         cxs = @config[:hosts].map do |hoststr|
           host, port = hoststr.split(':')
@@ -35,6 +76,8 @@ module ActiveRecord
 
           cfg = @config.merge(:host => host, :port => port)
           cx = Mysql2::Client.new(cfg)
+          cx.query_options.merge!(:as => :array)
+          cx
         end
 
         rw_cxs = cxs.select { |cx| cx_rw?(cx) }
@@ -51,7 +94,7 @@ module ActiveRecord
       def cx_rw?(cx = nil)
         cx ||= @connection
         res = cx.query("SELECT @@read_only as ro").first
-        res["ro"] == 0
+        res.first == 0
       end
     end
   end

@@ -18,6 +18,11 @@ class MysqlIsolatedServer
     @cx ||= Mysql2::Client.new(:host => "127.0.0.1", :port => @port, :username => "root", :password => "", :database => "mysql")
   end
 
+  def set_rw(rw)
+    ro = rw ? 0 : 1
+    connection.query("SET GLOBAL READ_ONLY=#{ro}")
+  end
+
 
   def boot!
     @port = grab_free_port

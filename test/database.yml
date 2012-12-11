@@ -1,6 +1,6 @@
 test:
   adapter: mysql_flexmaster
   username: flex
-  hosts: ["127.0.0.1:36866", "127.0.0.1:10061"]
+  hosts: ["127.0.0.1:55818", "127.0.0.1:32909"]
   password:
   database: flexmaster_test
