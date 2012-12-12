@@ -79,6 +79,17 @@ class TestArFlexmaster < Test::Unit::TestCase
     end
   end
 
+  def test_should_eventually_pick_up_new_master_on_selects
+    User.connection
+    $mysql_master.set_rw(false)
+    $mysql_slave.set_rw(true)
+    assert main_connection_is_master?
+    100.times do
+      u = User.first
+    end
+    assert !main_connection_is_master?
+  end
+
   private
   def write_database_yaml
     File.open(File.dirname(File.expand_path(__FILE__)) + "/database.yml", "w+") do |f|
