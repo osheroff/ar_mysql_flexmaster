@@ -33,18 +33,21 @@ module ActiveRecord
         if !cx_rw? && @tx_nest_count == 0
           refind_active_master
         end
-        super
+        ret = super
         @tx_nest_count += 1
+        ret
       end
 
       def commit_db_transaction
-        super
+        ret = super
         @tx_nest_count -= 1
+        ret
       end
 
       def rollback_db_transaction
-        super
+        ret = super
         @tx_nest_count -= 1
+        ret
       end
 
       def execute(sql, name = nil)
