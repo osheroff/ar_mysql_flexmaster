@@ -23,7 +23,6 @@ module ActiveRecord
       CHECK_RW_EVERY_N_SELECTS = 10
 
       def initialize(logger, config)
-        @tx_nest_count = 0
         @select_counter = 0
         @config = config
         @tx_hold_timeout = @config[:tx_hold_timeout] || 5
@@ -33,28 +32,14 @@ module ActiveRecord
       end
 
       def begin_db_transaction
-        if !cx_rw? && @tx_nest_count == 0
+        if !cx_rw? && open_transactions == 0
           refind_active_master
         end
-        ret = super
-        @tx_nest_count += 1
-        ret
-      end
-
-      def commit_db_transaction
-        ret = super
-        @tx_nest_count -= 1
-        ret
-      end
-
-      def rollback_db_transaction
-        ret = super
-        @tx_nest_count -= 1
-        ret
+        super
       end
 
       def execute(sql, name = nil)
-        if @tx_nest_count == 0 && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/ && !cx_rw?
+        if open_transactions == 0 && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/ && !cx_rw?
           refind_active_master
         else
           @select_counter += 1
@@ -74,6 +59,7 @@ module ActiveRecord
         tries.to_i.times do
           cx = find_active_master
           if cx
+            flush_column_information
             @connection = cx
             return
           end
@@ -106,6 +92,12 @@ module ActiveRecord
           # nothing read-write, or too many read-write
           # (should we manually close the connections?)
           return nil
+        end
+      end
+
+      def flush_column_information
+        ActiveRecord::Base.descendants.each do |k|
+          k.reset_column_information
         end
       end
 
