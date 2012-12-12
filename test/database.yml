@@ -1,6 +1,0 @@
-test:
-  adapter: mysql_flexmaster
-  username: flex
-  hosts: ["127.0.0.1:31979", "127.0.0.1:24771"]
-  password:
-  database: flexmaster_test
