@@ -20,44 +20,51 @@ module ActiveRecord
     class MysqlFlexmasterAdapter < Mysql2Adapter
       class NoActiveMasterException < Exception; end
 
-      CHECK_RW_EVERY_N_SELECTS = 10
+      CHECK_EVERY_N_SELECTS = 10
 
       def initialize(logger, config)
         @select_counter = 0
         @config = config
+        @is_master = !config[:slave]
         @tx_hold_timeout = @config[:tx_hold_timeout] || 5
-        connection = find_active_master
+        connection = find_correct_host
         raise NoActiveMasterException unless connection
         super(connection, logger, [], config)
       end
 
       def begin_db_transaction
-        if !cx_rw? && open_transactions == 0
-          refind_active_master
+        if !cx_correct? && open_transactions == 0
+          refind_correct_host
         end
         super
       end
 
       def execute(sql, name = nil)
-        if open_transactions == 0 && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/ && !cx_rw?
-          refind_active_master
+        if open_transactions == 0 && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/ && !cx_correct?
+          refind_correct_host
         else
           @select_counter += 1
-          if (@select_counter % CHECK_RW_EVERY_N_SELECTS == 0) && !cx_rw?
+          if (@select_counter % CHECK_EVERY_N_SELECTS == 0) && !cx_correct?
             # on select statements, check every 10 times to see if we need to switch masters,
             # but don't hold off anything if we fail
-            refind_active_master(1, 0)
+            refind_correct_host(1, 0)
           end
         end
         super
       end
 
       private
-      def refind_active_master(tries = nil, sleep_interval = nil)
+
+      def connect
+        @connection = find_correct_host
+        raise NoActiveMasterException unless @connection
+      end
+
+      def refind_correct_host(tries = nil, sleep_interval = nil)
         tries ||= @tx_hold_timeout.to_f / 0.1
         sleep_interval ||= 0.1
         tries.to_i.times do
-          cx = find_active_master
+          cx = find_correct_host
           if cx
             flush_column_information
             @connection = cx
@@ -76,7 +83,7 @@ module ActiveRecord
         end
       end
 
-      def find_active_master
+      def find_correct_host
         cxs = hosts_and_ports.map do |host, port|
           cfg = @config.merge(:host => host, :port => port)
           Mysql2::Client.new(cfg).tap do |cx|
@@ -84,14 +91,20 @@ module ActiveRecord
           end
         end
 
-        rw_cxs = cxs.select { |cx| cx_rw?(cx) }
+        correct_cxs = cxs.select { |cx| cx_correct?(cx) }
 
-        if rw_cxs.size == 1
-          return rw_cxs.first
+        if @is_master
+          # for master connections, we make damn sure that we have just one master
+          if correct_cxs.size == 1
+            return correct_cxs.first
+          else
+            # nothing read-write, or too many read-write
+            # (should we manually close the connections?)
+            return nil
+          end
         else
-          # nothing read-write, or too many read-write
-          # (should we manually close the connections?)
-          return nil
+          # for slave:true connections, we just return a random candidate
+          return correct_cxs.shuffle.first
         end
       end
 
@@ -101,9 +114,14 @@ module ActiveRecord
         end
       end
 
-      def cx_rw?(cx = @connection)
+      def cx_correct?(cx = @connection)
         res = cx.query("SELECT @@read_only as ro").first
-        res.first == 0
+
+        if @is_master
+          res.first == 0
+        else
+          res.first == 1
+        end
       end
     end
   end

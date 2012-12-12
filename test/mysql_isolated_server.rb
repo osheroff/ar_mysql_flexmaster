@@ -14,6 +14,19 @@ class MysqlIsolatedServer
     @params = params
   end
 
+  def make_slave_of(master)
+    master_binlog_info = master.connection.query("show master status").first
+    connection.query(<<-EOL
+      change master to master_host='127.0.0.1',
+                       master_port=#{master.port},
+                       master_user='root', master_password='',
+                       master_log_file='#{master_binlog_info['File']}',
+                       master_log_pos=#{master_binlog_info['Position']}
+      EOL
+    )
+    connection.query("SLAVE START")
+  end
+
   def connection
     @cx ||= Mysql2::Client.new(:host => "127.0.0.1", :port => @port, :username => "root", :password => "", :database => "mysql")
   end
@@ -36,7 +49,7 @@ class MysqlIsolatedServer
     exec_server <<-EOL
         mysqld --no-defaults --default-storage-engine=innodb \
                 --datadir=#{@mysql_data_dir} --pid-file=#{@base}/mysqld.pid --port=#{@port} \
-                #{@params} --socket=#{@mysql_data_dir}/mysql.sock
+                #{@params} --socket=#{@mysql_data_dir}/mysql.sock --log-bin --log-slave-updates
     EOL
 
     while !system("mysql -h127.0.0.1 --port=#{@port} --database=mysql -u root -e 'select 1' >/dev/null 2>&1")

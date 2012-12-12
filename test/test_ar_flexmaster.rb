@@ -4,7 +4,34 @@ require 'active_record'
 require_relative 'boot_mysql_env'
 require 'test/unit'
 
+File.open(File.dirname(File.expand_path(__FILE__)) + "/database.yml", "w+") do |f|
+      f.write <<-EOL
+test:
+  adapter: mysql_flexmaster
+  username: flex
+  hosts: ["127.0.0.1:#{$mysql_master.port}", "127.0.0.1:#{$mysql_slave.port}"]
+  password:
+  database: flexmaster_test
+
+test_slave:
+  adapter: mysql_flexmaster
+  username: flex
+  slave: true
+  hosts: ["127.0.0.1:#{$mysql_slave.port}", "127.0.0.1:#{$mysql_slave_2.port}"]
+  password:
+  database: flexmaster_test
+      EOL
+end
+
+ActiveRecord::Base.configurations = YAML::load(IO.read(File.dirname(__FILE__) + '/database.yml'))
+ActiveRecord::Base.establish_connection("test")
+
 class User < ActiveRecord::Base
+end
+
+class UserSlave < ActiveRecord::Base
+  establish_connection(:test_slave)
+  set_table_name "users"
 end
 
 # $mysql_master and $mysql_slave are separate references to the master and slave that we
@@ -12,12 +39,11 @@ end
 
 class TestArFlexmaster < Test::Unit::TestCase
   def setup
-    write_database_yaml
-    ActiveRecord::Base.configurations = YAML::load(IO.read(File.dirname(__FILE__) + '/database.yml'))
     ActiveRecord::Base.establish_connection("test")
 
     $mysql_master.set_rw(true)
     $mysql_slave.set_rw(false)
+    $mysql_slave_2.set_rw(false)
   end
 
   def test_should_raise_without_a_rw_master
@@ -80,7 +106,7 @@ class TestArFlexmaster < Test::Unit::TestCase
   end
 
   def test_should_eventually_pick_up_new_master_on_selects
-    User.connection
+    ActiveRecord::Base.connection
     $mysql_master.set_rw(false)
     $mysql_slave.set_rw(true)
     assert main_connection_is_master?
@@ -108,19 +134,17 @@ class TestArFlexmaster < Test::Unit::TestCase
     User.reset_column_information
   end
 
-  private
-  def write_database_yaml
-    File.open(File.dirname(File.expand_path(__FILE__)) + "/database.yml", "w+") do |f|
-      f.write <<-EOL
-test:
-  adapter: mysql_flexmaster
-  username: flex
-  hosts: ["127.0.0.1:#{$mysql_master.port}", "127.0.0.1:#{$mysql_slave.port}"]
-  password:
-  database: flexmaster_test
-      EOL
+  def test_should_choose_a_random_slave_connection
+    h = {}
+    10.times do
+      port = UserSlave.connection.execute("show global variables like 'port'").first.last.to_i
+      h[port] = 1
+      UserSlave.connection.reconnect!
     end
+    assert_equal 2, h.size
   end
+
+  private
 
   def main_connection_is_master?
     port = ActiveRecord::Base.connection.execute("show global variables like 'port'").first.last.to_i
