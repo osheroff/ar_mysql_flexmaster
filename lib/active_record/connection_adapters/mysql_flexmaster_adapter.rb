@@ -20,8 +20,11 @@ module ActiveRecord
     class MysqlFlexmasterAdapter < Mysql2Adapter
       class NoActiveMasterException < Exception; end
 
+      CHECK_RW_EVERY_N_SELECTS = 10
+
       def initialize(logger, config)
         @tx_nest_count = 0
+        @select_counter = 0
         @config = config
         @tx_hold_timeout = @config[:tx_hold_timeout] || 5
         connection = find_active_master
@@ -53,10 +56,13 @@ module ActiveRecord
       def execute(sql, name = nil)
         if @tx_nest_count == 0 && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/ && !cx_rw?
           refind_active_master
-        elsif rand(10) == 9 && !cx_rw?
-          # on select statements, check about every 10 times to see if we need to switch masters,
-          # but don't hold off anything if we fail
-          refind_active_master(1, 0)
+        else
+          @select_counter += 1
+          if (@select_counter % CHECK_RW_EVERY_N_SELECTS == 0) && !cx_rw?
+            # on select statements, check every 10 times to see if we need to switch masters,
+            # but don't hold off anything if we fail
+            refind_active_master(1, 0)
+          end
         end
         super
       end
@@ -76,15 +82,20 @@ module ActiveRecord
         raise NoActiveMasterException
       end
 
-      def find_active_master
-        cxs = @config[:hosts].map do |hoststr|
+      def hosts_and_ports
+        @hosts_and_ports ||= @config[:hosts].map do |hoststr|
           host, port = hoststr.split(':')
           port = port.to_i unless port.nil?
+          [host, port]
+        end
+      end
 
+      def find_active_master
+        cxs = hosts_and_ports.map do |host, port|
           cfg = @config.merge(:host => host, :port => port)
-          cx = Mysql2::Client.new(cfg)
-          cx.query_options.merge!(:as => :array)
-          cx
+          Mysql2::Client.new(cfg).tap do |cx|
+            cx.query_options.merge!(:as => :array)
+          end
         end
 
         rw_cxs = cxs.select { |cx| cx_rw?(cx) }
@@ -98,8 +109,7 @@ module ActiveRecord
         end
       end
 
-      def cx_rw?(cx = nil)
-        cx ||= @connection
+      def cx_rw?(cx = @connection)
         res = cx.query("SELECT @@read_only as ro").first
         res.first == 0
       end
