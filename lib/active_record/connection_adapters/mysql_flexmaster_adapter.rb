@@ -1,4 +1,5 @@
 require 'active_record/connection_adapters/mysql2_adapter'
+require 'timeout'
 
 module ActiveRecord
   class Base
@@ -21,12 +22,15 @@ module ActiveRecord
       class NoActiveMasterException < Exception; end
 
       CHECK_EVERY_N_SELECTS = 10
+      DEFAULT_CONNECT_TIMEOUT = 5
+      DEFAULT_TX_HOLD_TIMEOUT = 5
 
       def initialize(logger, config)
         @select_counter = 0
         @config = config
         @is_master = !config[:slave]
-        @tx_hold_timeout = @config[:tx_hold_timeout] || 5
+        @tx_hold_timeout = @config[:tx_hold_timeout] || DEFAULT_TX_HOLD_TIMEOUT
+        @connection_timeout = @config[:connection_timeout] || DEFAULT_CONNECT_TIMEOUT
         connection = find_correct_host
         raise NoActiveMasterException unless connection
         super(connection, logger, [], config)
@@ -85,13 +89,10 @@ module ActiveRecord
 
       def find_correct_host
         cxs = hosts_and_ports.map do |host, port|
-          cfg = @config.merge(:host => host, :port => port)
-          Mysql2::Client.new(cfg).tap do |cx|
-            cx.query_options.merge!(:as => :array)
-          end
+          initialize_connection(host, port)
         end
 
-        correct_cxs = cxs.select { |cx| cx_correct?(cx) }
+        correct_cxs = cxs.select { |cx| cx && cx_correct?(cx) }
 
         if @is_master
           # for master connections, we make damn sure that we have just one master
@@ -103,8 +104,21 @@ module ActiveRecord
             return nil
           end
         else
-          # for slave:true connections, we just return a random candidate
+          # for slave connections, we just return a random RO candidate
           return correct_cxs.shuffle.first
+        end
+      end
+
+      def initialize_connection(host, port)
+        begin
+          Timeout::timeout(@connection_timeout) do
+            cfg = @config.merge(:host => host, :port => port)
+            Mysql2::Client.new(cfg).tap do |cx|
+              cx.query_options.merge!(:as => :array)
+            end
+          end
+        rescue Mysql2::Error
+        rescue Timeout::Error
         end
       end
 

@@ -77,6 +77,7 @@ class MysqlIsolatedServer
     end
   end
 
+  attr_reader :pid
   def exec_server(cmd)
     cmd.strip!
     cmd.gsub!(/\\\n/, ' ')
@@ -89,7 +90,11 @@ class MysqlIsolatedServer
       STDERR.reopen(devnull)
       exec(cmd)
     end
-    at_exit { Process.kill("TERM", pid) }
+    at_exit {
+      Process.kill("TERM", pid)
+      system("rm -Rf #{base}")
+    }
+    @pid = pid
     devnull.close
   end
 

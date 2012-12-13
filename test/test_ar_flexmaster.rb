@@ -144,10 +144,43 @@ class TestArFlexmaster < Test::Unit::TestCase
     assert_equal 2, h.size
   end
 
+  def test_should_flip_the_slave_after_it_becomes_master
+    UserSlave.first
+    User.create!
+    $mysql_master.set_rw(false)
+    $mysql_slave.set_rw(true)
+    11.times do
+      UserSlave.first
+    end
+    assert_equal $mysql_slave_2.port, port_for_class(UserSlave)
+  end
+
+  def test_xxx_non_responsive_master
+    ActiveRecord::Base.configurations["test"]["hosts"] << "127.0.0.2:1235"
+    start_time = Time.now.to_i
+    User.connection.reconnect!
+    assert Time.now.to_i - start_time >= 5
+    ActiveRecord::Base.configurations["test"]["hosts"].pop
+  end
+
+  def test_yyy_shooting_the_master_in_the_head
+    User.create!
+    Process.kill("TERM", $mysql_master.pid)
+    $mysql_slave.set_rw(true)
+    User.connection.reconnect!
+    User.create!
+    UserSlave.first
+    assert !main_connection_is_master?
+  end
+
   private
 
+  def port_for_class(klass)
+    klass.connection.execute("show global variables like 'port'").first.last.to_i
+  end
+
   def main_connection_is_master?
-    port = ActiveRecord::Base.connection.execute("show global variables like 'port'").first.last.to_i
+    port = port_for_class(ActiveRecord::Base)
     port == $mysql_master.port
   end
 end
