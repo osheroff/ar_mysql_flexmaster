@@ -1,0 +1,65 @@
+#!/usr/bin/env ruby
+
+require 'bundler/setup'
+require 'mysql2'
+
+Thread.abort_on_exception = false
+$old_master, $new_master, $username, $password = *ARGV
+unless $old_master && $new_master && $username && $password
+  puts "Usage: master_cut OLD_MASTER NEW_MASTER USERNAME PASSWORD"
+  exit
+end
+
+def open_cx(host)
+  host, port = host.split(":")
+  port = port.to_i if port
+  Mysql2::Client.new(:host => host, :username => $username, :password => $password, :port => port)
+end
+
+def set_rw(cx)
+  cx.query("SET GLOBAL READ_ONLY=0")  
+end
+
+def set_ro(cx)
+  cx.query("SET GLOBAL READ_ONLY=1")  
+end
+
+$swapped_ok = false
+
+def process_kill_thread
+  Thread.new do
+    cx = open_cx($old_master)
+    sleep 5
+    while !$swapped_ok
+      my_id = cx.query("SELECT CONNECTION_ID() as id").first['id']
+      processlist = cx.query("show processlist")
+      processlist.each do |process|
+        next if process['Info'] =~ /SET GLOBAL READ_ONLY/
+        next if process['Id'].to_i == my_id.to_i
+        puts "killing #{process}"
+        cx.query("kill #{process['Id']}") 
+      end
+      sleep 0.1
+    end
+  end
+end
+
+def swap_thread
+  Thread.new do 
+    master = open_cx($old_master)
+    slave = open_cx($new_master)
+    set_ro(master)
+    set_rw(slave)
+    $swapped_ok = true
+    puts "Swapped #{$old_master} and #{$new_master}"
+    exit
+  end
+end
+
+threads = []
+threads << process_kill_thread
+threads << swap_thread
+threads.each(&:join)
+
+
+
