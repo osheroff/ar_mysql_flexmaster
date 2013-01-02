@@ -7,7 +7,7 @@ class MysqlIsolatedServer
   MYSQL_BASE_DIR="/usr"
 
   def initialize(params = nil, master_info = nil)
-    @base = Dir.mktmpdir("mysql_isolated")
+    @base = Dir.mktmpdir("/tmp/mysql_isolated")
     @mysql_data_dir="#{@base}/mysqld"
     @mysql_socket="#{@mysql_data_dir}/mysqld.sock"
     @master_info = master_info
