@@ -2,6 +2,7 @@
 
 require 'bundler/setup'
 require 'mysql2'
+require 'socket'
 
 Thread.abort_on_exception = false
 $old_master, $new_master, $username, $password = *ARGV
@@ -25,6 +26,34 @@ def set_ro(cx)
 end
 
 $swapped_ok = false
+
+def fail(reason)
+  puts "Failed preflight check: #{reason}"
+  exit false
+end
+
+def preflight_check
+  cx = open_cx($old_master)
+  rw = cx.query("select @@read_only as read_only").first['read_only']
+  fail("old-master #{$old_master} is read-only!") if rw != 0
+
+  slave_cx = open_cx($new_master)
+  rw = slave_cx.query("select @@read_only as read_only").first['read_only']
+  fail("new-master #{$old_master} is read-write!") if rw != 1
+
+  slave_info = slave_cx.query("show slave status").first
+  fail("slave is stopped!") unless slave_info['Slave_IO_Running'] == 'Yes' && slave_info['Slave_SQL_Running'] == 'Yes'
+  fail("slave is delayed") if slave_info['Seconds_Behind_Master'].nil? || slave_info['Seconds_Behind_Master'] > 0  
+ 
+  master_ip, slave_master_ip = [$old_master, slave_info['Master_Host']].map do |h|
+    h = h.split(':').first
+    Socket.gethostbyname(h)[3].unpack("CCCC") 
+  end
+
+  if master_ip != slave_master_ip
+    fail("slave does not appear to be replicating off master! (master: #{master_ip.join('.')}, slave's master: #{slave_master_ip.join('.')})") 
+  end
+end
 
 def process_kill_thread
   Thread.new do
@@ -55,6 +84,8 @@ def swap_thread
     exit
   end
 end
+
+preflight_check
 
 threads = []
 threads << process_kill_thread

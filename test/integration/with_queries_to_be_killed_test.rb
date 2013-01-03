@@ -3,12 +3,14 @@ require 'mysql2'
 require_relative '../boot_mysql_env'
 master_cut_script = File.expand_path(File.dirname(__FILE__)) + "/../../bin/master_cut"
 
+puts "testing with long running queries..."
+
 $mysql_master.connection.query("set GLOBAL READ_ONLY=0")
 $mysql_slave.connection.query("set GLOBAL READ_ONLY=1")
 $mysql_master.connection.send(:reconnect=, true)
 $mysql_slave.connection.send(:reconnect=, true)
 
-thread = Thread.new { 
+thread = Thread.new {
   begin
     $mysql_master.connection.query("update flexmaster_test.users set name=sleep(600)")
     puts "Query did not get killed!  Bad."
