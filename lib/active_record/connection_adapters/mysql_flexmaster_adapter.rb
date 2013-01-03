@@ -5,7 +5,7 @@ module ActiveRecord
   class Base
     def self.mysql_flexmaster_connection(config)
       config = config.symbolize_keys
-      hosts = config[:hosts]
+      hosts = config[:hosts] || [config[:host]]
 
       config[:username] = 'root' if config[:username].nil?
 
