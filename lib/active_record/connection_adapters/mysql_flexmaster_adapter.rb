@@ -5,6 +5,10 @@ module ActiveRecord
   class Base
     def self.mysql_flexmaster_connection(config)
       config = config.symbolize_keys
+
+      # fallback to :host or :localhost
+      config[:hosts] ||= config.key?(:host) ? [config[:host]] : ['localhost']
+
       hosts = config[:hosts] || [config[:host]]
 
       config[:username] = 'root' if config[:username].nil?
