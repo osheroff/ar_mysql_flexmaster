@@ -6,12 +6,14 @@ class MysqlIsolatedServer
   attr_reader :pid, :base, :port
   MYSQL_BASE_DIR="/usr"
 
-  def initialize(params = nil, master_info = nil)
+  def initialize(options = {})
     @base = Dir.mktmpdir("/tmp/mysql_isolated")
     @mysql_data_dir="#{@base}/mysqld"
     @mysql_socket="#{@mysql_data_dir}/mysqld.sock"
-    @master_info = master_info
-    @params = params
+    @params = options[:params]
+    @load_data_path = options[:data_path]
+    @port = options[:port]
+    @allow_output = options[:allow_output]
   end
 
   def make_slave_of(master)
@@ -38,13 +40,17 @@ class MysqlIsolatedServer
 
 
   def boot!
-    @port = grab_free_port
+    @port ||= grab_free_port
     system("rm -Rf #{@mysql_data_dir}")
     system("mkdir #{@mysql_data_dir}")
-
-    mysql_install_db = `which mysql_install_db`
-    idb_path = File.dirname(mysql_install_db)
-    system("(cd #{idb_path}/..; mysql_install_db --datadir=#{@mysql_data_dir}) >/dev/null 2>&1")
+    if @load_data_path
+      system("cp -a #{@load_data_path}/* #{@mysql_data_dir}")
+      system("rm -f #{@mysql_data_dir}/relay-log.info")
+    else
+      mysql_install_db = `which mysql_install_db`
+      idb_path = File.dirname(mysql_install_db)
+      system("(cd #{idb_path}/..; mysql_install_db --datadir=#{@mysql_data_dir}) >/dev/null 2>&1")
+    end
 
     exec_server <<-EOL
         mysqld --no-defaults --default-storage-engine=innodb \
@@ -86,8 +92,11 @@ class MysqlIsolatedServer
     system("chmod 0777 #{base}/tmp")
     pid = fork do
       ENV["TMPDIR"] = "#{base}/tmp"
-      STDOUT.reopen(devnull)
-      STDERR.reopen(devnull)
+      if !@allow_output
+        STDOUT.reopen(devnull)
+        STDERR.reopen(devnull)
+      end
+
       exec(cmd)
     end
     at_exit {

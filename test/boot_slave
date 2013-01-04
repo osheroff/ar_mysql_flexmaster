@@ -1,0 +1,16 @@
+require_relative 'mysql_isolated_server'
+
+# yeah, not technically isolated
+master = MysqlIsolatedServer.new(port: 3306)
+
+slave = MysqlIsolatedServer.new(data_path: "/Users/ben/.zendesk/var/mysql", allow_output: true, params: "--relay-log=footwa --skip-slave-start", port: 41756)
+slave.boot! 
+puts "mysql slave booted on port #{slave.port} -- access with mysql -uroot -h127.0.0.1 --port=#{slave.port} mysql"
+slave.connection.query("set global server_id=123")
+slave.make_slave_of(master) 
+slave.set_rw(false)
+
+uid_server = MysqlIsolatedServer.new(data_path: "/Users/ben/.zendesk/var/mysql", allow_output: true, params: "--skip-slave-start", port: 41757)
+uid_server.boot! 
+puts "mysql uid server booted on port #{uid_server.port} -- access with mysql -uroot -h127.0.0.1 --port=#{uid_server.port} mysql"
+sleep
