@@ -1,6 +1,9 @@
 #!/usr/bin/env rake
-require 'yaggy'
+require "bundler/setup"
 require 'rake/testtask'
+
+require 'appraisal'
+require 'yaggy'
 
 Yaggy.gem(File.expand_path("ar_mysql_flexmaster.gemspec", File.dirname(__FILE__)), :push_gem => true)
 

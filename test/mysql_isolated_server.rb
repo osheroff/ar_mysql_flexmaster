@@ -58,7 +58,8 @@ class MysqlIsolatedServer
                 #{@params} --socket=#{@mysql_data_dir}/mysql.sock --log-bin --log-slave-updates
     EOL
 
-    while !system("mysql -h127.0.0.1 --port=#{@port} --database=mysql -u root -e 'select 1' >/dev/null 2>&1")
+    while !system("mysql -h127.0.0.1 --port=#{@port} --database=mysql -u root -e 'select 1'")
+      system("mysql -S#{@mysql_data_dir}/mysql.sock -e \"GRANT ALL ON *.* to 'root'@'localhost'\"")
       sleep(0.1)
     end
 
@@ -90,6 +91,7 @@ class MysqlIsolatedServer
     devnull = File.open("/dev/null", "w")
     system("mkdir -p #{base}/tmp")
     system("chmod 0777 #{base}/tmp")
+    puts cmd
     pid = fork do
       ENV["TMPDIR"] = "#{base}/tmp"
       if !@allow_output
@@ -101,7 +103,7 @@ class MysqlIsolatedServer
     end
     at_exit {
       Process.kill("TERM", pid)
-      system("rm -Rf #{base}")
+      #system("rm -Rf #{base}")
     }
     @pid = pid
     devnull.close
