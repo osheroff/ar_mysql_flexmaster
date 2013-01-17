@@ -1,7 +1,7 @@
 PATH
   remote: /Users/ben/src/ar_mysql_flexmaster
   specs:
-    ar_mysql_flexmaster (0.0.2)
+    ar_mysql_flexmaster (0.0.5)
       activerecord
       activesupport
       mysql2
@@ -30,7 +30,7 @@ GEM
     debugger-linecache (1.1.2)
       debugger-ruby_core_source (>= 1.1.1)
     debugger-ruby_core_source (1.1.6)
-    mysql2 (0.3.11)
+    mysql2 (0.2.18)
     rack (1.1.5)
     rails (2.3.15)
       actionmailer (= 2.3.15)
@@ -40,6 +40,7 @@ GEM
       activesupport (= 2.3.15)
       rake (>= 0.8.3)
     rake (10.0.3)
+    yaggy (0.1.7)
 
 PLATFORMS
   ruby
@@ -48,4 +49,6 @@ DEPENDENCIES
   appraisal
   ar_mysql_flexmaster!
   debugger
+  mysql2 (~> 0.2.0)
   rails (~> 2.3.15)
+  yaggy

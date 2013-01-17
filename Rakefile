@@ -1,5 +1,4 @@
 #!/usr/bin/env rake
-require "bundler/setup"
 require 'rake/testtask'
 
 require 'appraisal'
@@ -9,6 +8,7 @@ Yaggy.gem(File.expand_path("ar_mysql_flexmaster.gemspec", File.dirname(__FILE__)
 
 Rake::TestTask.new(:test) do |test|
   test.libs << 'lib' << 'test'
-  test.pattern = 'test/**/*_test.rb'
+  test.pattern = 'test/*_test.rb'
+  #test.test_files = ['test/integration/run_integration_tests']
   test.verbose = true
 end
