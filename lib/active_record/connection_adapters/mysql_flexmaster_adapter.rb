@@ -127,7 +127,12 @@ module ActiveRecord
       end
 
       def flush_column_information
-        ActiveRecord::Base.descendants.each do |k|
+        if ActiveRecord::Base.respond_to?(:descendants)
+          klass_list = ActiveRecord::Base.descendants
+        else
+          klass_list = ActiveRecord::Base.send(:subclasses)
+        end
+        klass_list.each do |k|
           k.reset_column_information
         end
       end
