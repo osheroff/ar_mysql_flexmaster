@@ -1,6 +1,6 @@
 # ArMysqlFlexmaster
 
-TODO: Write a gem description
+A gem which allows the auto-selection at runtime of N mysql servers which are configured in database.yml
 
 ## Installation
 
