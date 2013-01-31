@@ -94,8 +94,8 @@ number of queries.
 
 ### caveats, gotchas
 
-- Any explicit ( BEGIN ... END ) transaction that are in-flight when the old master goes READ_ONLY 
-  will crash.  In theory there's a workaround for this problem, in pratice it's rather unweildy due
+- Any explicit ( BEGIN ... END ) transaction that are in-flight when the old master goes READ_ONLY
+  will crash.  In theory there's a workaround for this problem, in pratice it's rather unwieldy due
   to a lack of shared global variables in mysql.
 
 ## Contributing
