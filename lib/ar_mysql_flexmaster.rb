@@ -1,2 +1,3 @@
+require 'active_record/connection_adapters/mysql_flexmaster_adapter'
 module ArMysqlFlexmaster
 end
