@@ -10,15 +10,15 @@ Thread.abort_on_exception = false
 
 opts = GetoptLong.new(
   ["--password",      "-p", GetoptLong::REQUIRED_ARGUMENT],
-  ["--reset-slave",   "-r", GetoptLong::NO_ARGUMENT],
+  ["--rehome-master",   "-r", GetoptLong::NO_ARGUMENT],
 )
 
 opts.each do |opt, arg|
   case opt
   when '--password'
     $password = arg
-  when '--reset-slave'
-    $reset_slave = true
+  when '--rehome-master'
+    $rehome_master = true
   end
 end
 
@@ -73,8 +73,14 @@ def preflight_check
   fail("new-master #{$old_master} is read-write!") if rw != 1
 
   slave_info = slave_cx.query("show slave status").first
+  fail("no slave configured!") if slave_info.nil?
   fail("slave is stopped!") unless slave_info['Slave_IO_Running'] == 'Yes' && slave_info['Slave_SQL_Running'] == 'Yes'
   fail("slave is delayed") if slave_info['Seconds_Behind_Master'].nil? || slave_info['Seconds_Behind_Master'] > 0  
+
+  masters_slave_info = cx.query("show slave status").first
+  if $rehome_master && masters_slave_info.nil? || masters_slave_info['Master_User'] == 'test'
+    fail("I can't rehome the original master -- it has no slave user or password.")
+  end
  
   master_ip, slave_master_ip = [$old_master, slave_info['Master_Host']].map do |h|
     h = h.split(':').first
@@ -116,8 +122,20 @@ def swap_thread
     puts "Swapped #{$old_master} and #{$new_master}"
     puts "New master information at time of swap: "
     pp new_master_info 
+    if $rehome_master
+      rehome_master(new_master_info)
+    end
     exit
   end
+end
+
+def rehome_master(info)
+  puts "Reconfiguring #{$old_master} to be a slave of #{$new_master}..."
+  host, port = $new_master.split(":")
+  port_clause = port ? "master_port = #{port}," : ""
+  cx = open_cx($old_master)
+  cx.query("change master to master_host='#{host}', #{port_clause} master_log_file = '#{info['File']}', master_log_pos=#{info['Position']}")
+  cx.query("slave start")
 end
 
 ask_for_password
@@ -127,6 +145,8 @@ threads = []
 threads << process_kill_thread
 threads << swap_thread
 threads.each(&:join)
+
+rehome_master
 
 
 

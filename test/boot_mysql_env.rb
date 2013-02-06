@@ -21,6 +21,7 @@ mysql_slave_2.connection.query("set global server_id=3")
 
 puts "mysql chained slave booted on port #{mysql_slave_2.port} -- access with mysql -uroot -h127.0.0.1 --port=#{mysql_slave_2.port} mysql"
 
+mysql_master.connection.query("CHANGE MASTER TO master_host='127.0.0.1', master_user='root', master_password=''")
 mysql_slave.make_slave_of(mysql_master)
 mysql_slave_2.make_slave_of(mysql_slave)
 
