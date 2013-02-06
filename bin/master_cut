@@ -4,11 +4,29 @@ require 'bundler/setup'
 require 'mysql2'
 require 'socket'
 require 'pp'
+require "getoptlong"
 
 Thread.abort_on_exception = false
-$old_master, $new_master, $username, $password = *ARGV
-unless $old_master && $new_master && $username && $password
-  puts "Usage: master_cut OLD_MASTER NEW_MASTER USERNAME PASSWORD"
+
+opts = GetoptLong.new(
+  ["--password",      "-p", GetoptLong::REQUIRED_ARGUMENT],
+  ["--reset-slave",   "-r", GetoptLong::NO_ARGUMENT],
+)
+
+opts.each do |opt, arg|
+  case opt
+  when '--password'
+    $password = arg
+  when '--reset-slave'
+    $reset_slave = true
+  end
+end
+
+$old_master, $new_master, $username = *ARGV
+unless $old_master && $new_master && $username 
+  puts "Usage: master_cut OLD_MASTER NEW_MASTER ADMIN_USERNAME"
+  puts "                  [-p,--password PASSWORD]"
+  puts "                  [-r,--reset-slave]"
   exit
 end
 
@@ -31,6 +49,18 @@ $swapped_ok = false
 def fail(reason)
   puts "Failed preflight check: #{reason}"
   exit false
+end
+
+def ask_for_password
+  return unless $password.nil?
+
+  $stdout.write("Password for #{$username}: ")
+  begin
+    system "stty -echo"
+    $password = $stdin.gets.chomp
+  ensure
+    system "stty echo"
+  end
 end
 
 def preflight_check
@@ -90,6 +120,7 @@ def swap_thread
   end
 end
 
+ask_for_password
 preflight_check
 
 threads = []

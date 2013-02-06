@@ -20,7 +20,7 @@ thread = Thread.new {
   end
 }
 
-system "#{master_cut_script} 127.0.0.1:#{$mysql_master.port} 127.0.0.1:#{$mysql_slave.port} root ''"
+system "#{master_cut_script} 127.0.0.1:#{$mysql_master.port} 127.0.0.1:#{$mysql_slave.port} root -p ''"
 
 thread.join
 

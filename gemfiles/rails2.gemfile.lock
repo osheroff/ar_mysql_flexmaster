@@ -1,7 +1,7 @@
 PATH
   remote: /Users/ben/src/ar_mysql_flexmaster
   specs:
-    ar_mysql_flexmaster (0.0.5)
+    ar_mysql_flexmaster (0.0.8)
       activerecord
       activesupport
       mysql2
