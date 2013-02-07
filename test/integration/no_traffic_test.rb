@@ -8,7 +8,7 @@ $mysql_slave.connection.query("set GLOBAL READ_ONLY=1")
 
 puts "testing basic cutover..."
 
-system "#{master_cut_script} 127.0.0.1:#{$mysql_master.port} 127.0.0.1:#{$mysql_slave.port} root ''"
+system "#{master_cut_script} 127.0.0.1:#{$mysql_master.port} 127.0.0.1:#{$mysql_slave.port} root -p ''"
 if $mysql_master.connection.query("select @@read_only as ro").first['ro'] != 1
   puts "Master is not readonly!"
   exit 1

@@ -5,7 +5,7 @@ require_relative '../boot_mysql_env'
 
 def assert_script_failed
   master_cut_script = File.expand_path(File.dirname(__FILE__)) + "/../../bin/master_cut"
-  if system "#{master_cut_script} 127.0.0.1:#{$mysql_master.port} 127.0.0.1:#{$mysql_slave.port} root ''"
+  if system "#{master_cut_script} 127.0.0.1:#{$mysql_master.port} 127.0.0.1:#{$mysql_slave.port} root -p ''"
     puts "Script returned ok instead of false!"
     exit 1
   end
