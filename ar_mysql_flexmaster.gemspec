@@ -5,7 +5,7 @@ Gem::Specification.new do |gem|
   gem.email         = ["ben@zendesk.com"]
   gem.description   = %q{ar_mysql_flexmaster allows configuring N mysql servers in database.yml and auto-selects which is a master at runtime}
   gem.summary       = %q{select a master at runtime from a list}
-  gem.homepage      = ""
+  gem.homepage      = "http://github.com/osheroff/ar_mysql_flexmaster"
 
   gem.files         = `git ls-files`.split($\)
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
