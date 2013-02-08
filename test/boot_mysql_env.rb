@@ -3,7 +3,7 @@
 require_relative "mysql_isolated_server"
 require 'debugger'
 
-mysql_master = MysqlIsolatedServer.new
+mysql_master = MysqlIsolatedServer.new(allow_output: false)
 mysql_master.boot!
 mysql_master.connection.query("set global server_id=1")
 

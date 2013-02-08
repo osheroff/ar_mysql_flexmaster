@@ -50,7 +50,7 @@ class MysqlIsolatedServer
       mysql_install_db = `which mysql_install_db`
       idb_path = File.dirname(mysql_install_db)
       system("(cd #{idb_path}/..; mysql_install_db --datadir=#{@mysql_data_dir}) >/dev/null 2>&1")
-      system("cp #{File.expand_path(File.dirname(__FILE__))}/user.MY* #{@mysql_data_dir}/mysql")
+      system("cp #{File.expand_path(File.dirname(__FILE__))}/user.* #{@mysql_data_dir}/mysql")
     end
 
     exec_server <<-EOL
