@@ -75,8 +75,8 @@ module ActiveRecord
         tries.to_i.times do
           cx = find_correct_host
           if cx
-            flush_column_information
             @connection = cx
+            flush_column_information
             return
           end
           sleep(sleep_interval)
