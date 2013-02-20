@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 
 require_relative "mysql_isolated_server"
-require 'debugger'
 
 mysql_master = MysqlIsolatedServer.new(allow_output: false)
 mysql_master.boot!
