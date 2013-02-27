@@ -49,7 +49,7 @@ class MysqlIsolatedServer
     else
       mysql_install_db = `which mysql_install_db`
       idb_path = File.dirname(mysql_install_db)
-      system("(cd #{idb_path}/..; mysql_install_db --datadir=#{@mysql_data_dir})")
+      system("(cd #{idb_path}/..; mysql_install_db --datadir=#{@mysql_data_dir} --user=`whoami`)")
       system("cp #{File.expand_path(File.dirname(__FILE__))}/user.* #{@mysql_data_dir}/mysql")
     end
 
