@@ -116,24 +116,6 @@ class TestArFlexmaster < Test::Unit::TestCase
     assert !main_connection_is_master?
   end
 
-  def test_altering_on_the_slave
-    User.create!(:name => "foo")
-    $mysql_slave.connection.query("ALTER TABLE flexmaster_test.users add column xtra int(10)")
-    assert !User.column_names.include?("xtra")
-    $mysql_master.set_rw(false)
-    $mysql_slave.set_rw(true)
-
-    # pick up the new connection and column info
-    User.create!(:name => "foo")
-
-    # now we should be able to use it.
-    assert User.create!(:name => "foobar", :xtra => 5)
-
-    # teardown
-    $mysql_slave.connection.query("ALTER TABLE flexmaster_test.users drop column xtra")
-    User.reset_column_information
-  end
-
   def test_should_choose_a_random_slave_connection
     h = {}
     10.times do

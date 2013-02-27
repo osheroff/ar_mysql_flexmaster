@@ -76,7 +76,6 @@ module ActiveRecord
           cx = find_correct_host
           if cx
             @connection = cx
-            flush_column_information
             return
           end
           sleep(sleep_interval)
@@ -124,17 +123,6 @@ module ActiveRecord
           end
         rescue Mysql2::Error
         rescue Timeout::Error
-        end
-      end
-
-      def flush_column_information
-        if ActiveRecord::Base.respond_to?(:descendants)
-          klass_list = ActiveRecord::Base.descendants
-        else
-          klass_list = ActiveRecord::Base.send(:subclasses)
-        end
-        klass_list.each do |k|
-          k.reset_column_information
         end
       end
 
