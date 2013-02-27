@@ -141,7 +141,7 @@ class TestArFlexmaster < Test::Unit::TestCase
     ActiveRecord::Base.configurations["test"]["hosts"] << "127.0.0.2:1235"
     start_time = Time.now.to_i
     User.connection.reconnect!
-    assert Time.now.to_i - start_time >= 5
+    assert Time.now.to_i - start_time >= 5, "only took #{Time.now.to_i - start_time} to timeout"
     ActiveRecord::Base.configurations["test"]["hosts"].pop
   end
 
