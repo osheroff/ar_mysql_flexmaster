@@ -12,3 +12,5 @@ Rake::TestTask.new(:test) do |test|
   #test.test_files = ['test/integration/run_integration_tests']
   test.verbose = true
 end
+
+task :default => :test
