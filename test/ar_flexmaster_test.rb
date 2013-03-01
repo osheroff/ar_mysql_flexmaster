@@ -3,6 +3,7 @@ require 'ar_mysql_flexmaster'
 require 'active_record'
 require_relative 'boot_mysql_env'
 require 'test/unit'
+require 'debugger'
 
 File.open(File.dirname(File.expand_path(__FILE__)) + "/database.yml", "w+") do |f|
       f.write <<-EOL
@@ -17,7 +18,7 @@ test_slave:
   adapter: mysql_flexmaster
   username: flex
   slave: true
-  hosts: ["127.0.0.1:#{$mysql_slave.port}", "127.0.0.1:#{$mysql_slave_2.port}"]
+  hosts: ["127.0.0.1:#{$mysql_master.port}", "127.0.0.1:#{$mysql_slave.port}", "127.0.0.1:#{$mysql_slave_2.port}"]
   password:
   database: flexmaster_test
       EOL
@@ -57,7 +58,7 @@ class TestArFlexmaster < Test::Unit::TestCase
   end
 
   def test_should_select_the_master_on_boot
-    assert main_connection_is_master?
+    assert main_connection_is_original_master?
   end
 
   def test_should_hold_txs_until_timeout_then_abort
@@ -80,7 +81,7 @@ class TestArFlexmaster < Test::Unit::TestCase
       $mysql_slave.set_rw(true)
     end
     User.create(:name => "foo")
-    assert !main_connection_is_master?
+    assert !main_connection_is_original_master?
     assert User.first(:conditions => {:name => "foo"})
   end
 
@@ -92,7 +93,7 @@ class TestArFlexmaster < Test::Unit::TestCase
       $mysql_slave.set_rw(true)
     end
     User.update_all(:name => "bar")
-    assert !main_connection_is_master?
+    assert !main_connection_is_original_master?
     assert_equal "bar", User.first.name
   end
 
@@ -109,11 +110,11 @@ class TestArFlexmaster < Test::Unit::TestCase
     ActiveRecord::Base.connection
     $mysql_master.set_rw(false)
     $mysql_slave.set_rw(true)
-    assert main_connection_is_master?
+    assert main_connection_is_original_master?
     100.times do
       u = User.first
     end
-    assert !main_connection_is_master?
+    assert !main_connection_is_original_master?
   end
 
   def test_should_choose_a_random_slave_connection
@@ -131,10 +132,11 @@ class TestArFlexmaster < Test::Unit::TestCase
     User.create!
     $mysql_master.set_rw(false)
     $mysql_slave.set_rw(true)
-    11.times do
-      UserSlave.first
+    20.times do
+      UserSlave.connection.execute("select 1")
     end
-    assert_equal $mysql_slave_2.port, port_for_class(UserSlave)
+    connected_port = port_for_class(UserSlave)
+    assert [$mysql_slave_2.port, $mysql_master.port].include?(connected_port)
   end
 
   def test_xxx_non_responsive_master
@@ -149,12 +151,23 @@ class TestArFlexmaster < Test::Unit::TestCase
   def test_yyy_shooting_the_master_in_the_head
     User.create!
     Process.kill("TERM", $mysql_master.pid)
+    sleep 1
     $mysql_slave.set_rw(true)
     User.connection.reconnect!
     User.create!
     UserSlave.first
-    assert !main_connection_is_master?
+    assert !main_connection_is_original_master?
   end
+
+  # test that when nothing else is available we can fall back to the master in a slave role
+  # note that by the time this test runs, the 'yyy' test has already killed the master
+  def test_zzz_shooting_the_other_slave_in_the_head
+    $mysql_slave.set_rw(true)
+    $mysql_slave_2.kill!
+    UserSlave.connection.reconnect!
+    assert port_for_class(UserSlave) == $mysql_slave.port
+  end
+
 
   private
 
@@ -162,7 +175,7 @@ class TestArFlexmaster < Test::Unit::TestCase
     klass.connection.execute("show global variables like 'port'").first.last.to_i
   end
 
-  def main_connection_is_master?
+  def main_connection_is_original_master?
     port = port_for_class(ActiveRecord::Base)
     port == $mysql_master.port
   end
