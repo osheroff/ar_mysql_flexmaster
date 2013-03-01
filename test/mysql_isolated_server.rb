@@ -39,6 +39,12 @@ class MysqlIsolatedServer
   end
 
 
+  def locate_executable(*candidates)
+    output = `which #{candidates.join(' ')}`
+    return nil if output == "\n"
+    output.split("\n").first
+  end
+
   def boot!
     @port ||= grab_free_port
     system("rm -Rf #{@mysql_data_dir}")
@@ -63,10 +69,12 @@ class MysqlIsolatedServer
       sleep(0.1)
     end
 
-    system("mysql_tzinfo_to_sql /usr/share/zoneinfo 2>/dev/null | mysql --database=mysql --port=#{@port} -u root mysql >/dev/null")
+    tzinfo_to_sql = locate_executable("mysql_tzinfo_to_sql5", "mysql_tzinfo_to_sql")
+    raise "could not find mysql_tzinfo_to_sql" unless tzinfo_to_sql
+    system("#{tzinfo_to_sql} /usr/share/zoneinfo | mysql -h127.0.0.1 --database=mysql --port=#{@port} -u root mysql ")
 
-    system(%Q(mysql --port=#{@port} --database=mysql -u root -e "SET GLOBAL time_zone='UTC'"))
-    system(%Q(mysql --port=#{@port} --database=mysql -u root -e "GRANT SELECT ON *.* to 'zdslave'@'localhost'"))
+    system(%Q(mysql -h127.0.0.1 --port=#{@port} --database=mysql -u root -e "SET GLOBAL time_zone='UTC'"))
+    system(%Q(mysql -h127.0.0.1 --port=#{@port} --database=mysql -u root -e "GRANT SELECT ON *.* to 'zdslave'@'localhost'"))
   end
 
   def grab_free_port
@@ -102,7 +110,7 @@ class MysqlIsolatedServer
     end
     at_exit {
       Process.kill("TERM", pid)
-      #system("rm -Rf #{base}")
+      system("rm -Rf #{base}")
     }
     @pid = pid
     devnull.close
