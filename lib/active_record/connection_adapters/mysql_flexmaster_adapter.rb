@@ -94,23 +94,30 @@ module ActiveRecord
       def find_correct_host
         cxs = hosts_and_ports.map do |host, port|
           initialize_connection(host, port)
-        end
+        end.compact
 
-        correct_cxs = cxs.select { |cx| cx && cx_correct?(cx) }
+        correct_cxs = cxs.select { |cx| cx_correct?(cx) }
 
+        chosen_cx = nil
         if @is_master
           # for master connections, we make damn sure that we have just one master
           if correct_cxs.size == 1
-            return correct_cxs.first
+            chosen_cx = correct_cxs.first
           else
             # nothing read-write, or too many read-write
             # (should we manually close the connections?)
-            return nil
+            chosen_cx = nil
           end
         else
-          # for slave connections, we just return a random RO candidate
-          return correct_cxs.shuffle.first
+          # for slave connections, we just return a random RO candidate or the master if none are available
+          if correct_cxs.empty?
+            chosen_cx = cxs.first
+          else
+            chosen_cx = correct_cxs.shuffle.first
+          end
         end
+        cxs.each { |cx| cx.close unless chosen_cx == cx }
+        chosen_cx
       end
 
       def initialize_connection(host, port)
