@@ -6,11 +6,14 @@ require 'yaggy'
 
 Yaggy.gem(File.expand_path("ar_mysql_flexmaster.gemspec", File.dirname(__FILE__)), :push_gem => true)
 
-Rake::TestTask.new(:test) do |test|
+Rake::TestTask.new(:test_units) do |test|
   test.libs << 'lib' << 'test'
   test.pattern = 'test/*_test.rb'
-  #test.test_files = ['test/integration/run_integration_tests']
   test.verbose = true
 end
 
-task :default => :test
+task :default do 
+  retval = true
+  retval &= Rake::Task[:test_units].invoke
+  retval &= system(File.dirname(__FILE__) + "/test/integration/run_integration_tests")
+end

@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+retval = true
+Dir.glob(File.dirname(__FILE__) + '/*_test.rb').each do |f|
+  retval &= system("ruby #{f}")
+end
+exit retval
