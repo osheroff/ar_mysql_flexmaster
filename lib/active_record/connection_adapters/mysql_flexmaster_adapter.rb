@@ -42,27 +42,72 @@ module ActiveRecord
       end
 
       def begin_db_transaction
-        if !cx_correct? && open_transactions == 0
-          refind_correct_host
+        if !in_transaction?
+          verify_current_connection!(true)
         end
-        super
+        with_lost_cx_guard do
+          super
+        end
       end
 
       def execute(sql, name = nil)
-        if open_transactions == 0 && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/ && !cx_correct?
-          refind_correct_host
-        else
-          @select_counter += 1
-          if (@select_counter % CHECK_EVERY_N_SELECTS == 0) && !cx_correct?
-            # on select statements, check every 10 times to see if we need to switch masters,
-            # but don't hold off anything if we fail
-            refind_correct_host(1, 0)
-          end
+        for_update = starting_implicit_transaction?(sql)
+        verify_current_connection!(for_update)
+        with_lost_cx_guard do
+          super
         end
-        super
       end
 
       private
+      def in_transaction?
+        open_transactions > 0
+      end
+
+      # never try to save the call when in a transaction
+      # otherwise try to detect when the master/slave has crashed and retry stuff.
+      def with_lost_cx_guard
+        if !defined?(should_retry)
+          should_retry = !in_transaction?
+        end
+
+        begin
+          yield
+        rescue Mysql2::Error => e
+          case e.errno
+          when 2006 # gone away -- throw away the connection and retry once
+            raise e unless should_retry
+            should_retry = false
+            @connection = nil
+            retry
+          else
+            raise e
+          end
+        end
+      end
+
+
+      def verify_current_connection!(for_update)
+        with_lost_cx_guard do
+          if !@connection
+            refind_correct_host
+          else
+            if for_update
+              refind_correct_host unless cx_correct?
+            else
+              # on select statements, check every 10 times to see if we need to switch hosts,
+              # but don't sleep long on it.
+
+              @select_counter += 1
+              return unless @select_counter % CHECK_EVERY_N_SELECTS == 0
+              refind_correct_host(1, 0) unless cx_correct?
+            end
+          end
+        end
+      end
+
+      def starting_implicit_transaction?(sql)
+        !in_transaction? && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/
+      end
 
       def connect
         @connection = find_correct_host
@@ -73,11 +118,9 @@ module ActiveRecord
         tries ||= @tx_hold_timeout.to_f / 0.1
         sleep_interval ||= 0.1
         tries.to_i.times do
-          cx = find_correct_host
-          if cx
-            @connection = cx
-            return
-          end
+          @connection = find_correct_host
+          return if @connection
+
           sleep(sleep_interval)
         end
         raise NoActiveMasterException
