@@ -11,6 +11,7 @@ Thread.abort_on_exception = false
 opts = GetoptLong.new(
   ["--password",      "-p", GetoptLong::REQUIRED_ARGUMENT],
   ["--rehome-master",   "-r", GetoptLong::NO_ARGUMENT],
+  ["--start-slave",   "-s", GetoptLong::NO_ARGUMENT],
 )
 
 opts.each do |opt, arg|
@@ -19,16 +20,25 @@ opts.each do |opt, arg|
     $password = arg
   when '--rehome-master'
     $rehome_master = true
+  when '--start-slave'
+    $start_slave = true
+    $rehome_master = true
   end
+end
+
+def usage
+  puts "Usage: master_cut OLD_MASTER NEW_MASTER ADMIN_USERNAME"
+  puts "                  [-p,--password PASSWORD]"
+  puts "                  [-r,--rehome-master]"
+  puts "                  [-s,--start-slave]"
+  exit false
 end
 
 $old_master, $new_master, $username = *ARGV
 unless $old_master && $new_master && $username 
-  puts "Usage: master_cut OLD_MASTER NEW_MASTER ADMIN_USERNAME"
-  puts "                  [-p,--password PASSWORD]"
-  puts "                  [-r,--reset-slave]"
-  exit
+  usage 
 end
+
 
 def open_cx(host)
   host, port = host.split(":")
@@ -123,19 +133,19 @@ def swap_thread
     puts "New master information at time of swap: "
     pp new_master_info 
     if $rehome_master
-      rehome_master(new_master_info)
+      rehome_master(new_master_info, $start_slave)
     end
     exit
   end
 end
 
-def rehome_master(info)
+def rehome_master(info, start_slave)
   puts "Reconfiguring #{$old_master} to be a slave of #{$new_master}..."
   host, port = $new_master.split(":")
   port_clause = port ? "master_port = #{port}," : ""
   cx = open_cx($old_master)
   cx.query("change master to master_host='#{host}', #{port_clause} master_log_file = '#{info['File']}', master_log_pos=#{info['Position']}")
-  cx.query("slave start")
+  cx.query("slave start") if start_slave
 end
 
 ask_for_password
