@@ -38,13 +38,15 @@ end
 # $mysql_master and $mysql_slave are separate references to the master and slave that we
 # use to send control-channel commands on
 
+$original_master_port = $mysql_master.port
+
 class TestArFlexmaster < Test::Unit::TestCase
   def setup
     ActiveRecord::Base.establish_connection("test")
 
-    $mysql_master.set_rw(true)
-    $mysql_slave.set_rw(false)
-    $mysql_slave_2.set_rw(false)
+    $mysql_master.set_rw(true) if $mysql_master
+    $mysql_slave.set_rw(false) if $mysql_slave
+    $mysql_slave_2.set_rw(false) if $mysql_slave_2
   end
 
   def test_should_raise_without_a_rw_master
@@ -152,7 +154,10 @@ class TestArFlexmaster < Test::Unit::TestCase
 
   def test_yyy_shooting_the_master_in_the_head
     User.create!
-    Process.kill("TERM", $mysql_master.pid)
+
+    $mysql_master.kill!
+    $mysql_master = nil
+
     sleep 1
     $mysql_slave.set_rw(true)
     User.connection.reconnect!
@@ -165,7 +170,10 @@ class TestArFlexmaster < Test::Unit::TestCase
   # note that by the time this test runs, the 'yyy' test has already killed the master
   def test_zzz_shooting_the_other_slave_in_the_head
     $mysql_slave.set_rw(true)
+
     $mysql_slave_2.kill!
+    $mysql_slave_2 = nil
+
     UserSlave.connection.reconnect!
     assert port_for_class(UserSlave) == $mysql_slave.port
   end
@@ -179,6 +187,6 @@ class TestArFlexmaster < Test::Unit::TestCase
 
   def main_connection_is_original_master?
     port = port_for_class(ActiveRecord::Base)
-    port == $mysql_master.port
+    port == $original_master_port
   end
 end
