@@ -25,6 +25,8 @@ module ActiveRecord
   module ConnectionAdapters
     class MysqlFlexmasterAdapter < Mysql2Adapter
       class NoActiveMasterException < Exception; end
+      class TooManyMastersException < Exception; end
+      class NoServerAvailableException < Exception; end
 
       CHECK_EVERY_N_SELECTS = 10
       DEFAULT_CONNECT_TIMEOUT = 5
@@ -36,8 +38,10 @@ module ActiveRecord
         @is_master = !config[:slave]
         @tx_hold_timeout = @config[:tx_hold_timeout] || DEFAULT_TX_HOLD_TIMEOUT
         @connection_timeout = @config[:connection_timeout] || DEFAULT_CONNECT_TIMEOUT
+
         connection = find_correct_host
-        raise NoActiveMasterException unless connection
+
+        raise_no_server_available! unless connection
         super(connection, logger, [], config)
       end
 
@@ -69,7 +73,26 @@ module ActiveRecord
         raise NoActiveMasterException unless @connection
       end
 
+      def raise_no_server_available!
+        raise NoServerAvailableException.new(errors_to_message)
+      end
+
+      def collected_errors
+        @collected_errors ||= []
+      end
+
+      def clear_collected_errors!
+        @collected_errors = []
+      end
+
+      def errors_to_message
+        "Errors encountered while trying #{@config[:hosts].inspect}: " +
+          collected_errors.map { |e| "#{e.class.name}: #{e.message}" }.uniq.join(",")
+      end
+
       def refind_correct_host(tries = nil, sleep_interval = nil)
+        clear_collected_errors!
+
         tries ||= @tx_hold_timeout.to_f / 0.1
         sleep_interval ||= 0.1
         tries.to_i.times do
@@ -80,7 +103,7 @@ module ActiveRecord
           end
           sleep(sleep_interval)
         end
-        raise NoActiveMasterException
+        raise_no_server_available!
       end
 
       def hosts_and_ports
@@ -106,6 +129,12 @@ module ActiveRecord
           else
             # nothing read-write, or too many read-write
             # (should we manually close the connections?)
+            if correct_cxs.size > 1
+              collected_errors << TooManyMastersException.new("found #{correct_cxs.size} read-write servers")
+            else
+              collected_errors << NoActiveMasterException.new("no read-write servers found")
+            end
+
             chosen_cx = nil
           end
         else
@@ -128,8 +157,12 @@ module ActiveRecord
               cx.query_options.merge!(:as => :array)
             end
           end
-        rescue Mysql2::Error
-        rescue Timeout::Error
+        rescue Mysql2::Error => e
+          collected_errors << e
+          nil
+        rescue Timeout::Error => e
+          collected_errors << e
+          nil
         end
       end
 

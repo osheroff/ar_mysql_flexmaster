@@ -52,9 +52,11 @@ class TestArFlexmaster < Test::Unit::TestCase
       m.set_rw(false)
     end
 
-    assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoActiveMasterException) do
+    e = assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
       ActiveRecord::Base.connection
     end
+
+    assert e.message =~ /NoActiveMasterException/
   end
 
   def test_should_select_the_master_on_boot
@@ -66,7 +68,7 @@ class TestArFlexmaster < Test::Unit::TestCase
 
     $mysql_master.set_rw(false)
     start_time = Time.now.to_i
-    assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoActiveMasterException) do
+    e = assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
       User.create(:name => "foo")
     end
     end_time = Time.now.to_i
