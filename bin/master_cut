@@ -88,7 +88,7 @@ def preflight_check
   fail("slave is delayed") if slave_info['Seconds_Behind_Master'].nil? || slave_info['Seconds_Behind_Master'] > 0  
 
   masters_slave_info = cx.query("show slave status").first
-  if $rehome_master && masters_slave_info.nil? || masters_slave_info['Master_User'] == 'test'
+  if $rehome_master && masters_slave_info.nil? || masters_slave_info && masters_slave_info['Master_User'] == 'test'
     fail("I can't rehome the original master -- it has no slave user or password.")
   end
  
