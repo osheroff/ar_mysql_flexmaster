@@ -121,6 +121,18 @@ class TestArFlexmaster < Test::Unit::TestCase
     assert !main_connection_is_original_master?
   end
 
+  # there's a small window in which the old master is read-only but the new slave hasn't come online yet.
+  # Allow side-effect free statements to continue.
+  def test_should_not_crash_selects_in_the_double_read_only_window
+    ActiveRecord::Base.connection
+    $mysql_master.set_rw(false)
+    $mysql_slave.set_rw(false)
+    assert main_connection_is_original_master?
+    100.times do
+      u = User.first
+    end
+  end
+
   def test_should_choose_a_random_slave_connection
     h = {}
     10.times do
