@@ -67,6 +67,14 @@ module ActiveRecord
         super
       end
 
+      def current_host
+        @connection.query_options[:host]
+      end
+
+      def current_port
+        @connection.query_options[:port]
+      end
+
       private
 
       def connect

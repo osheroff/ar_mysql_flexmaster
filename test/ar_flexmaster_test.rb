@@ -143,6 +143,12 @@ class TestArFlexmaster < Test::Unit::TestCase
     assert_equal 2, h.size
   end
 
+  def test_should_expose_the_current_master_and_port
+    cx = ActiveRecord::Base.connection
+    assert_equal "127.0.0.1", cx.current_host
+    assert_equal $mysql_master.port, cx.current_port
+  end
+
   def test_should_flip_the_slave_after_it_becomes_master
     UserSlave.first
     User.create!
