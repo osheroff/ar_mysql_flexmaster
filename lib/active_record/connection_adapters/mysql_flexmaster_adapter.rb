@@ -130,7 +130,6 @@ module ActiveRecord
             chosen_cx = correct_cxs.first
           else
             # nothing read-write, or too many read-write
-            # (should we manually close the connections?)
             if correct_cxs.size > 1
               collected_errors << TooManyMastersException.new("found #{correct_cxs.size} read-write servers")
             else
