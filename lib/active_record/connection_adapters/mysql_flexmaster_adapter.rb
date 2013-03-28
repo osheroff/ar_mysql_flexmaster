@@ -47,20 +47,21 @@ module ActiveRecord
 
       def begin_db_transaction
         if !cx_correct? && open_transactions == 0
-          refind_correct_host
+          refind_correct_host!
         end
         super
       end
 
       def execute(sql, name = nil)
         if open_transactions == 0 && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/ && !cx_correct?
-          refind_correct_host
+          refind_correct_host!
         else
           @select_counter += 1
           if (@select_counter % CHECK_EVERY_N_SELECTS == 0) && !cx_correct?
             # on select statements, check every 10 times to see if we need to switch masters,
-            # but don't hold off anything if we fail
-            refind_correct_host(1, 0)
+            # but don't sleep, and if existing connection isn't correct, go ahead anyway.
+            cx = find_correct_host
+            @connection = cx if cx
           end
         end
         super
@@ -90,7 +91,7 @@ module ActiveRecord
           collected_errors.map { |e| "#{e.class.name}: #{e.message}" }.uniq.join(",")
       end
 
-      def refind_correct_host(tries = nil, sleep_interval = nil)
+      def refind_correct_host!(tries = nil, sleep_interval = nil)
         clear_collected_errors!
 
         tries ||= @tx_hold_timeout.to_f / 0.1
