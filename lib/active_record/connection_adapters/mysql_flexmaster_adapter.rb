@@ -91,11 +91,12 @@ module ActiveRecord
           collected_errors.map { |e| "#{e.class.name}: #{e.message}" }.uniq.join(",")
       end
 
-      def refind_correct_host!(tries = nil, sleep_interval = nil)
+      def refind_correct_host!
         clear_collected_errors!
 
-        tries ||= @tx_hold_timeout.to_f / 0.1
-        sleep_interval ||= 0.1
+        sleep_interval = 0.1
+        tries = @tx_hold_timeout.to_f / sleep_interval
+
         tries.to_i.times do
           cx = find_correct_host
           if cx
