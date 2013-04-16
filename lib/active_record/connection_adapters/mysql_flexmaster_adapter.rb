@@ -100,18 +100,20 @@ module ActiveRecord
         end
       end
 
+      # when either doing BEGIN or INSERT/UPDATE/DELETE etc, ensure a correct connection
+      # and crash if wrong
       def verify_connection_for_write
         if !@connection || !cx_correct?
           refind_correct_host!
         end
       end
 
+      # on select statements, check every 10 statements to see if we need to switch hosts,
+      # but don't crash if the cx is wrong, and don't sleep trying to find a correct one.
       def verify_connection_for_read
         if !@connection
           refind_correct_host!
         else
-          # on select statements, check every 10 times to see if we need to switch hosts,
-          # but don't sleep long on it.
           @select_counter += 1
           return unless @select_counter % CHECK_EVERY_N_SELECTS == 0
 
