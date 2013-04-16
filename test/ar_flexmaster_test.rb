@@ -181,7 +181,7 @@ class TestArFlexmaster < Test::Unit::TestCase
     # test that when we throw an exception in a bad (no active master) situation we don't get stuck there
     #
     # put us into a bad state -- no @connection
-    assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoActiveMasterException) do
+    assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
       User.create!
     end
 

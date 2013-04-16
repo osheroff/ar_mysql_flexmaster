@@ -47,17 +47,18 @@ module ActiveRecord
 
       def begin_db_transaction
         if !in_transaction?
-          verify_current_connection!(true)
+          with_lost_cx_guard { verify_connection_for_write }
         end
-        with_lost_cx_guard do
-          super
-        end
+        super
       end
 
       def execute(sql, name = nil)
-        for_update = starting_implicit_transaction?(sql)
-        verify_current_connection!(for_update)
         with_lost_cx_guard do
+          if opening_implicit_transaction?(sql)
+            verify_connection_for_write
+          else
+            verify_connection_for_read
+          end
           super
         end
       end
@@ -75,50 +76,54 @@ module ActiveRecord
         open_transactions > 0
       end
 
-      # never try to save the call when in a transaction
+      # never try to carry on if inside a transaction
       # otherwise try to detect when the master/slave has crashed and retry stuff.
       def with_lost_cx_guard
-        if !defined?(should_retry)
-          should_retry = !in_transaction?
-        end
+        return yield if in_transaction?
+        retried = false
 
         begin
           yield
         rescue Mysql2::Error => e
           case e.errno
           when 2006 # gone away -- throw away the connection and retry once
-            raise e unless should_retry
-            should_retry = false
-            @connection = nil
-            retry
+            if !retried
+              retried = true
+              @connection = nil
+              retry
+            else
+              raise e
+            end
           else
             raise e
           end
         end
       end
 
+      def verify_connection_for_write
+        if !@connection || !cx_correct?
+          refind_correct_host!
+        end
+      end
 
-      def verify_current_connection!(for_update)
-        with_lost_cx_guard do
-          if !@connection
-            refind_correct_host
-          else
-            if for_update
-              refind_correct_host unless cx_correct?
-            else
-              # on select statements, check every 10 times to see if we need to switch hosts,
-              # but don't sleep long on it.
+      def verify_connection_for_read
+        if !@connection
+          refind_correct_host!
+        else
+          # on select statements, check every 10 times to see if we need to switch hosts,
+          # but don't sleep long on it.
+          @select_counter += 1
+          return unless @select_counter % CHECK_EVERY_N_SELECTS == 0
 
-              @select_counter += 1
-              return unless @select_counter % CHECK_EVERY_N_SELECTS == 0
-              refind_correct_host(1, 0) unless cx_correct?
-            end
+          if !cx_correct?
+            cx = find_correct_host
+            @connection = cx if cx
           end
         end
       end
 
-      def starting_implicit_transaction?(sql)
-        !in_transaction? && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/
+      def opening_implicit_transaction?(sql)
+        !in_transaction? && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/i
       end
 
       def connect
