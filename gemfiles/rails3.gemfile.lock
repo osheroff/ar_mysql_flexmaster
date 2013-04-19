@@ -1,7 +1,7 @@
 PATH
   remote: /Users/ben/src/ar_mysql_flexmaster
   specs:
-    ar_mysql_flexmaster (0.0.8)
+    ar_mysql_flexmaster (0.3.0)
       activerecord
       activesupport
       mysql2
@@ -60,6 +60,7 @@ GEM
       treetop (~> 1.4.8)
     mime-types (1.19)
     mysql2 (0.2.18)
+    mysql_isolated_server (0.0.2)
     polyglot (0.3.3)
     rack (1.2.7)
     rack-mount (0.6.14)
@@ -98,5 +99,6 @@ DEPENDENCIES
   ar_mysql_flexmaster!
   debugger
   mysql2 (~> 0.2.0)
+  mysql_isolated_server
   rails (~> 3.0.0)
   yaggy
