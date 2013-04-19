@@ -1,0 +1,11 @@
+Can I ask you to add a .travis.yml to ar_mysql_flexmaster
+
+Something like:
+
+rvm:
+  - 1.9.3
+  - 2.0
+gemfile:
+  - gemfiles/rails2.gemfile
+  - gemfiles/rails3.gemfile
+  - gemfiles/rails3.2.gemfile
