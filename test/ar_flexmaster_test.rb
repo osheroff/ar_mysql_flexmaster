@@ -221,6 +221,26 @@ class TestArFlexmaster < Test::Unit::TestCase
     $mysql_master.up!
   end
 
+  def test_losing_the_server_with_reconnect_on
+    Reconnect.create!
+    ReconnectSlave.first
+
+    $mysql_master.down!
+
+    assert Reconnect.first
+    assert ReconnectSlave.first
+
+    assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
+      Reconnect.create!
+    end
+
+    $mysql_slave.set_rw(true)
+    Reconnect.create!
+    ReconnectSlave.first
+  ensure
+    $mysql_master.up!
+  end
+
   # test that when nothing else is available we can fall back to the master in a slave role
   def test_master_can_act_as_slave
     $mysql_slave.down!
@@ -245,13 +265,16 @@ class TestArFlexmaster < Test::Unit::TestCase
     port == $original_master_port
   end
 
-  def master_connection
-    port = port_for_class(User)
+  def connection_for_class(klass)
+    port = port_for_class(klass)
     [$mysql_master, $mysql_slave, $mysql_slave_2].find { |cx| cx.port == port }
   end
 
+  def master_connection
+    connection_for_class(User)
+  end
+
   def slave_connection
-    port = port_for_class(UserSlave)
-    [$mysql_master, $mysql_slave, $mysql_slave_2].first { |cx| cx.port == port }
+    connection_for_class(UserSlave)
   end
 end

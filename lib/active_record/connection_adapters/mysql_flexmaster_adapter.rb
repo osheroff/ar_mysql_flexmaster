@@ -100,11 +100,13 @@ module ActiveRecord
         end
       end
 
-      AR_MESSAGES = [ /^Mysql2::Error: MySQL server has gone away/ ]
+      AR_MESSAGES = [ /^Mysql2::Error: MySQL server has gone away/,
+                      /^Mysql2::Error: Can't connect to MySQL server/ ]
       def retryable_error?(e)
         case e
         when Mysql2::Error
-          [2006].include?(e.errno)
+          # 2006 is gone-away, 61 is can't-connect (for reconnection: true connections)
+          [2006, 61].include?(e.errno)
         when ActiveRecord::StatementInvalid
           AR_MESSAGES.any? { |m| e.message.match(m) }
         end
