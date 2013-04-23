@@ -19,5 +19,5 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency("activesupport")
   gem.add_development_dependency("appraisal")
   gem.add_development_dependency("yaggy")
-  gem.add_development_dependency("mysql_isolated_server")
+  gem.add_development_dependency("mysql_isolated_server", "~> 0.1.1")
 end
