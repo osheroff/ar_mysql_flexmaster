@@ -35,36 +35,37 @@ module ActiveRecord
       def initialize(logger, config)
         @select_counter = 0
         @config = config
-        @is_master = !config[:slave]
+        @rw = config[:slave] ? :read : :write
         @tx_hold_timeout = @config[:tx_hold_timeout] || DEFAULT_TX_HOLD_TIMEOUT
         @connection_timeout = @config[:connection_timeout] || DEFAULT_CONNECT_TIMEOUT
 
-        connection = find_correct_host
+        connection = find_correct_host(@rw)
 
         raise_no_server_available! unless connection
         super(connection, logger, [], config)
       end
 
       def begin_db_transaction
-        if !cx_correct? && open_transactions == 0
-          refind_correct_host!
+        if !in_transaction?
+          with_lost_cx_guard { hard_verify }
         end
         super
       end
 
       def execute(sql, name = nil)
-        if open_transactions == 0 && sql =~ /^(INSERT|UPDATE|DELETE|ALTER|CHANGE)/ && !cx_correct?
-          refind_correct_host!
+        if in_transaction?
+          super # no way to rescue any lost cx or wrong-host errors at this point.
         else
-          @select_counter += 1
-          if (@select_counter % CHECK_EVERY_N_SELECTS == 0) && !cx_correct?
-            # on select statements, check every 10 times to see if we need to switch masters,
-            # but don't sleep, and if existing connection isn't correct, go ahead anyway.
-            cx = find_correct_host
-            @connection = cx if cx
+          with_lost_cx_guard do
+            if has_side_effects?(sql)
+              hard_verify
+            else
+              soft_verify
+            end
+
+            super
           end
         end
-        super
       end
 
       def current_host
@@ -77,9 +78,77 @@ module ActiveRecord
 
       private
 
+      def in_transaction?
+        open_transactions > 0
+      end
+
+      # never try to carry on if inside a transaction
+      # otherwise try to detect when the master/slave has crashed and retry stuff.
+      def with_lost_cx_guard
+        retried = false
+
+        begin
+          yield
+        rescue Mysql2::Error, ActiveRecord::StatementInvalid => e
+          if retryable_error?(e) && !retried
+            retried = true
+            @connection = nil
+            retry
+          else
+            raise e
+          end
+        end
+      end
+
+      AR_MESSAGES = [ /^Mysql2::Error: MySQL server has gone away/,
+                      /^Mysql2::Error: Can't connect to MySQL server/ ]
+      def retryable_error?(e)
+        case e
+        when Mysql2::Error
+          # 2006 is gone-away, 61 is can't-connect (for reconnection: true connections)
+          [2006, 61].include?(e.errno)
+        when ActiveRecord::StatementInvalid
+          AR_MESSAGES.any? { |m| e.message.match(m) }
+        end
+      end
+
+      # when either doing BEGIN or INSERT/UPDATE/DELETE etc, ensure a correct connection
+      # and crash if wrong
+      def hard_verify
+        if !@connection || !cx_correct?
+          refind_correct_host!
+        end
+      end
+
+      # on select statements, check every 10 statements to see if we need to switch hosts,
+      # but don't crash if the cx is wrong, and don't sleep trying to find a correct one.
+      def soft_verify
+        if !@connection
+          @connection = find_correct_host(@rw)
+        else
+          @select_counter += 1
+          return unless @select_counter % CHECK_EVERY_N_SELECTS == 0
+
+          if !cx_correct?
+            cx = find_correct_host(@rw)
+            @connection = cx if cx
+          end
+        end
+        if @rw == :write && !@connection
+          # desperation mode: we've been asked for the master, but it's just not available.
+          # we'll go ahead and return a connection to the slave, understanding that it'll never work
+          # for writes.
+          @connection = find_correct_host(:read)
+        end
+      end
+
+      def has_side_effects?(sql)
+        sql =~ /^\s*(INSERT|UPDATE|DELETE|ALTER|CHANGE|REPLACE)/i
+      end
+
       def connect
-        @connection = find_correct_host
-        raise NoActiveMasterException unless @connection
+        @connection = find_correct_host(@rw)
+        raise_no_server_available! unless @connection
       end
 
       def raise_no_server_available!
@@ -106,11 +175,9 @@ module ActiveRecord
         tries = @tx_hold_timeout.to_f / sleep_interval
 
         tries.to_i.times do
-          cx = find_correct_host
-          if cx
-            @connection = cx
-            return
-          end
+          @connection = find_correct_host(@rw)
+          return if @connection
+
           sleep(sleep_interval)
         end
         raise_no_server_available!
@@ -124,7 +191,7 @@ module ActiveRecord
         end
       end
 
-      def find_correct_host
+      def find_correct_host(rw)
         cxs = hosts_and_ports.map do |host, port|
           initialize_connection(host, port)
         end.compact
@@ -132,7 +199,8 @@ module ActiveRecord
         correct_cxs = cxs.select { |cx| cx_correct?(cx) }
 
         chosen_cx = nil
-        if @is_master
+        case rw
+        when :write
           # for master connections, we make damn sure that we have just one master
           if correct_cxs.size == 1
             chosen_cx = correct_cxs.first
@@ -146,8 +214,8 @@ module ActiveRecord
 
             chosen_cx = nil
           end
-        else
-          # for slave connections, we just return a random RO candidate or the master if none are available
+        when :read
+          # for slave connections (or master-gone-away scenarios), we just return a random RO candidate or the master if none are available
           if correct_cxs.empty?
             chosen_cx = cxs.first
           else
@@ -178,7 +246,7 @@ module ActiveRecord
       def cx_correct?(cx = @connection)
         res = cx.query("SELECT @@read_only as ro").first
 
-        if @is_master
+        if @rw == :write
           res.first == 0
         else
           res.first == 1
