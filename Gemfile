@@ -4,4 +4,5 @@ source 'https://rubygems.org'
 gemspec
 gem "debugger", :platform => :ruby_19
 gem "appraisal"
+gem "mysql_isolated_server", :path => "~/src/mysql_isolated_server"
 

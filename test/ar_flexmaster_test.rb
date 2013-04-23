@@ -167,16 +167,18 @@ class TestArFlexmaster < Test::Unit::TestCase
     start_time = Time.now.to_i
     User.connection.reconnect!
     assert Time.now.to_i - start_time >= 5, "only took #{Time.now.to_i - start_time} to timeout"
+  ensure
     ActiveRecord::Base.configurations["test"]["hosts"].pop
   end
 
-  def test_yyy_shooting_the_master_in_the_head
+  def test_shooting_the_master_in_the_head
     User.create!
     UserSlave.first
 
-    $mysql_master.kill!
-    $mysql_master = nil
-    sleep 1
+    $mysql_master.down!
+
+    # protected against 'gone away' errors?
+    assert User.first
 
     # test that when we throw an exception in a bad (no active master) situation we don't get stuck there
     #
@@ -191,8 +193,8 @@ class TestArFlexmaster < Test::Unit::TestCase
     User.create!
     UserSlave.first
     assert !main_connection_is_original_master?
-    $mysql_master = nil
-
+  ensure
+    $mysql_master.up!
   end
 
   # test that when nothing else is available we can fall back to the master in a slave role
