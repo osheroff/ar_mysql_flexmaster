@@ -7,20 +7,27 @@ require 'debugger'
 
 File.open(File.dirname(File.expand_path(__FILE__)) + "/database.yml", "w+") do |f|
       f.write <<-EOL
-test:
+common: &common
   adapter: mysql_flexmaster
   username: flex
-  hosts: ["127.0.0.1:#{$mysql_master.port}", "127.0.0.1:#{$mysql_slave.port}"]
-  password:
+  hosts: ["127.0.0.1:#{$mysql_master.port}", "127.0.0.1:#{$mysql_slave.port}", "127.0.0.1:#{$mysql_slave_2.port}"]
   database: flexmaster_test
 
+test:
+  <<: *common
+
 test_slave:
-  adapter: mysql_flexmaster
-  username: flex
+  <<: *common
   slave: true
-  hosts: ["127.0.0.1:#{$mysql_master.port}", "127.0.0.1:#{$mysql_slave.port}", "127.0.0.1:#{$mysql_slave_2.port}"]
-  password:
-  database: flexmaster_test
+
+reconnect:
+  <<: *common
+  reconnect: true
+
+reconnect_slave:
+  <<: *common
+  reconnect: true
+  slave: true
       EOL
 end
 
@@ -32,6 +39,16 @@ end
 
 class UserSlave < ActiveRecord::Base
   establish_connection(:test_slave)
+  self.table_name = "users"
+end
+
+class Reconnect < ActiveRecord::Base
+  establish_connection(:reconnect)
+  self.table_name = "users"
+end
+
+class ReconnectSlave < ActiveRecord::Base
+  establish_connection(:reconnect_slave)
   self.table_name = "users"
 end
 
@@ -62,7 +79,7 @@ class TestArFlexmaster < Test::Unit::TestCase
   end
 
   def test_should_select_the_master_on_boot
-    assert main_connection_is_original_master?
+    assert_equal $mysql_master, master_connection
   end
 
   def test_should_hold_txs_until_timeout_then_abort
@@ -85,7 +102,7 @@ class TestArFlexmaster < Test::Unit::TestCase
       $mysql_slave.set_rw(true)
     end
     User.create(:name => "foo")
-    assert !main_connection_is_original_master?
+    assert_equal $mysql_slave, master_connection
     assert User.first(:conditions => {:name => "foo"})
   end
 
@@ -97,7 +114,9 @@ class TestArFlexmaster < Test::Unit::TestCase
       $mysql_slave.set_rw(true)
     end
     User.update_all(:name => "bar")
-    assert !main_connection_is_original_master?
+
+    assert_equal $mysql_slave, master_connection
+
     assert_equal "bar", User.first.name
   end
 
@@ -114,11 +133,11 @@ class TestArFlexmaster < Test::Unit::TestCase
     ActiveRecord::Base.connection
     $mysql_master.set_rw(false)
     $mysql_slave.set_rw(true)
-    assert main_connection_is_original_master?
+    assert_equal $mysql_master, master_connection
     100.times do
       u = User.first
     end
-    assert !main_connection_is_original_master?
+    assert_equal $mysql_slave, master_connection
   end
 
   # there's a small window in which the old master is read-only but the new slave hasn't come online yet.
@@ -127,7 +146,7 @@ class TestArFlexmaster < Test::Unit::TestCase
     ActiveRecord::Base.connection
     $mysql_master.set_rw(false)
     $mysql_slave.set_rw(false)
-    assert main_connection_is_original_master?
+    assert_equal $mysql_master, master_connection
     100.times do
       u = User.first
     end
@@ -149,16 +168,17 @@ class TestArFlexmaster < Test::Unit::TestCase
     assert_equal $mysql_master.port, cx.current_port
   end
 
-  def test_should_flip_the_slave_after_it_becomes_master
+  def test_should_move_off_the_slave_after_it_becomes_master
     UserSlave.first
     User.create!
     $mysql_master.set_rw(false)
     $mysql_slave.set_rw(true)
+
     20.times do
       UserSlave.connection.execute("select 1")
     end
-    connected_port = port_for_class(UserSlave)
-    assert [$mysql_slave_2.port, $mysql_master.port].include?(connected_port)
+
+    assert [$mysql_master, $mysql_slave_2].include?(slave_connection)
   end
 
   def test_xxx_non_responsive_master
@@ -180,37 +200,39 @@ class TestArFlexmaster < Test::Unit::TestCase
     # protected against 'gone away' errors?
     assert User.first
 
-    # test that when we throw an exception in a bad (no active master) situation we don't get stuck there
-    #
-    # put us into a bad state -- no @connection
+    # this statement should
+    # put us into a bad state -- our @connection should be nil, as we'll fail to get a master connection
     assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
       User.create!
     end
 
-    $mysql_slave.set_rw(true)
-    User.connection.execute("select 1")
+    # now test that the next time through we ask for a read connection, we'll grudgingly give back the slave
+    User.first
 
+    assert [$mysql_slave, $mysql_slave_2].include?(master_connection)
+
+    # now a dba or someone comes along and flips the read-only bit on the slave
+    $mysql_slave.set_rw(true)
     User.create!
     UserSlave.first
-    assert !main_connection_is_original_master?
+
+    assert_equal $mysql_slave, master_connection
   ensure
     $mysql_master.up!
   end
 
   # test that when nothing else is available we can fall back to the master in a slave role
-  # note that by the time this test runs, the 'yyy' test has already killed the master
-  def test_zzz_shooting_the_other_slave_in_the_head
-    $mysql_slave.set_rw(true)
+  def test_master_can_act_as_slave
+    $mysql_slave.down!
+    $mysql_slave_2.down!
 
-    $mysql_slave_2.kill!
-    $mysql_slave_2 = nil
-
-    UserSlave.connection.reconnect!
-    assert port_for_class(UserSlave) == $mysql_slave.port
+    UserSlave.first
+    assert_equal $mysql_master, slave_connection
+  ensure
+    $mysql_slave.up!
+    $mysql_slave_2.up!
   end
 
-  def test_zzzz_recovery_after_crash
-  end
 
   private
 
@@ -221,5 +243,15 @@ class TestArFlexmaster < Test::Unit::TestCase
   def main_connection_is_original_master?
     port = port_for_class(ActiveRecord::Base)
     port == $original_master_port
+  end
+
+  def master_connection
+    port = port_for_class(User)
+    [$mysql_master, $mysql_slave, $mysql_slave_2].find { |cx| cx.port == port }
+  end
+
+  def slave_connection
+    port = port_for_class(UserSlave)
+    [$mysql_master, $mysql_slave, $mysql_slave_2].first { |cx| cx.port == port }
   end
 end
