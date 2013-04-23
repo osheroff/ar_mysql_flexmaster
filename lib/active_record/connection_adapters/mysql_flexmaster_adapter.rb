@@ -24,9 +24,9 @@ module ActiveRecord
 
   module ConnectionAdapters
     class MysqlFlexmasterAdapter < Mysql2Adapter
-      class NoActiveMasterException < Exception; end
-      class TooManyMastersException < Exception; end
-      class NoServerAvailableException < Exception; end
+      class NoActiveMasterException < StandardError; end
+      class TooManyMastersException < StandardError; end
+      class NoServerAvailableException < StandardError; end
 
       CHECK_EVERY_N_SELECTS = 10
       DEFAULT_CONNECT_TIMEOUT = 5

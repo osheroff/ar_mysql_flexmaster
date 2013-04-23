@@ -1,12 +1,11 @@
 #!/usr/bin/env ruby
 
-require_relative "mysql_isolated_server"
+require "mysql_isolated_server"
 
 threads = []
 threads << Thread.new do
   $mysql_master = MysqlIsolatedServer.new(allow_output: false)
   $mysql_master.boot!
-  $mysql_master.connection.query("set global server_id=1")
 
   puts "mysql master booted on port #{$mysql_master.port} -- access with mysql -uroot -h127.0.0.1 --port=#{$mysql_master.port} mysql"
 end
@@ -14,7 +13,6 @@ end
 threads << Thread.new do
   $mysql_slave = MysqlIsolatedServer.new
   $mysql_slave.boot!
-  $mysql_slave.connection.query("set global server_id=2")
 
   puts "mysql slave booted on port #{$mysql_slave.port} -- access with mysql -uroot -h127.0.0.1 --port=#{$mysql_slave.port} mysql"
 end
@@ -22,7 +20,6 @@ end
 threads << Thread.new do
   $mysql_slave_2 = MysqlIsolatedServer.new
   $mysql_slave_2.boot!
-  $mysql_slave_2.connection.query("set global server_id=3")
 
   puts "mysql chained slave booted on port #{$mysql_slave_2.port} -- access with mysql -uroot -h127.0.0.1 --port=#{$mysql_slave_2.port} mysql"
 end
