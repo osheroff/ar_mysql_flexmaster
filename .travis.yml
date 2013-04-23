@@ -1,6 +1,5 @@
 rvm:
   - 1.9.3
-  - 2.0
 gemfile:
   - gemfiles/rails2.gemfile
   - gemfiles/rails3.gemfile
