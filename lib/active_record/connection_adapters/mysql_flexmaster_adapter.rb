@@ -89,19 +89,24 @@ module ActiveRecord
 
         begin
           yield
-        rescue Mysql2::Error => e
-          case e.errno
-          when 2006 # gone away -- throw away the connection and retry once
-            if !retried
-              retried = true
-              @connection = nil
-              retry
-            else
-              raise e
-            end
+        rescue Mysql2::Error, ActiveRecord::StatementInvalid => e
+          if retryable_error?(e) && !retried
+            retried = true
+            @connection = nil
+            retry
           else
             raise e
           end
+        end
+      end
+
+      AR_MESSAGES = [ /^Mysql2::Error: MySQL server has gone away/ ]
+      def retryable_error?(e)
+        case e
+        when Mysql2::Error
+          [2006].include?(e.errno)
+        when ActiveRecord::StatementInvalid
+          AR_MESSAGES.any? { |m| e.message.match(m) }
         end
       end
 
