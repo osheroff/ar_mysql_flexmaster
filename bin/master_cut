@@ -113,10 +113,18 @@ def process_kill_thread
         next if process['Info'] =~ /SET GLOBAL READ_ONLY/
         next if process['Id'].to_i == my_id.to_i
         puts "killing #{process}"
-        cx.query("kill #{process['Id']}") 
+        kill_query!(cx, process['Id'])
       end
       sleep 0.1
     end
+  end
+end
+
+def kill_query!(cx, id)
+  begin
+    cx.query("kill #{id}") 
+  rescue Mysql2::Error => e
+    raise e unless e.errno == 1094 # unknown thread id error
   end
 end
 
