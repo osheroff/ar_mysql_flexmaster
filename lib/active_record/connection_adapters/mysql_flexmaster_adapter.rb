@@ -105,8 +105,10 @@ module ActiveRecord
       def retryable_error?(e)
         case e
         when Mysql2::Error
-          # 2006 is gone-away, 61 is can't-connect (for reconnection: true connections)
-          [2006, 61].include?(e.errno)
+          # 2006 is gone-away, 61 is can't-connect (for reconnection: true connections(?)), also is 2003
+          puts e
+          puts e.errno
+          [2006, 2003].include?(e.errno)
         when ActiveRecord::StatementInvalid
           AR_MESSAGES.any? { |m| e.message.match(m) }
         end
@@ -172,14 +174,15 @@ module ActiveRecord
         clear_collected_errors!
 
         sleep_interval = 0.1
-        tries = @tx_hold_timeout.to_f / sleep_interval
+        timeout_at = Time.now.to_f + @tx_hold_timeout
 
-        tries.to_i.times do
+        begin
           @connection = find_correct_host(@rw)
           return if @connection
 
           sleep(sleep_interval)
-        end
+        end while Time.now.to_f < timeout_at
+
         raise_no_server_available!
       end
 
