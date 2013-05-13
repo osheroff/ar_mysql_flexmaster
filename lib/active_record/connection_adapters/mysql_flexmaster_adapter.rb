@@ -105,8 +105,8 @@ module ActiveRecord
       def retryable_error?(e)
         case e
         when Mysql2::Error
-          # 2006 is gone-away, 61 is can't-connect (for reconnection: true connections)
-          [2006, 61].include?(e.errno)
+          # 2006 is gone-away, 2003 is can't-connect (applicable when reconnect is true)
+          [2006, 2003].include?(e.errno)
         when ActiveRecord::StatementInvalid
           AR_MESSAGES.any? { |m| e.message.match(m) }
         end
@@ -134,10 +134,11 @@ module ActiveRecord
             @connection = cx if cx
           end
         end
+
         if @rw == :write && !@connection
           # desperation mode: we've been asked for the master, but it's just not available.
           # we'll go ahead and return a connection to the slave, understanding that it'll never work
-          # for writes.
+          # for writes. (we'll call hard_verify and crash)
           @connection = find_correct_host(:read)
         end
       end
@@ -172,14 +173,15 @@ module ActiveRecord
         clear_collected_errors!
 
         sleep_interval = 0.1
-        tries = @tx_hold_timeout.to_f / sleep_interval
+        timeout_at = Time.now.to_f + @tx_hold_timeout
 
-        tries.to_i.times do
+        begin
           @connection = find_correct_host(@rw)
           return if @connection
 
           sleep(sleep_interval)
-        end
+        end while Time.now.to_f < timeout_at
+
         raise_no_server_available!
       end
 
