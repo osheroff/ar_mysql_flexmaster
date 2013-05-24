@@ -191,25 +191,52 @@ class TestArFlexmaster < Test::Unit::TestCase
     ActiveRecord::Base.configurations["test"]["hosts"].pop
   end
 
-  def test_shooting_the_master_in_the_head
+  def test_limping_along_with_a_slave_acting_as_a_master
     User.create!
-    UserSlave.first
-
     $mysql_master.down!
 
-    # protected against 'gone away' errors?
-    assert User.first
+    # the test here is that even though we've asserted we want the master,
+    # since we're doing a SELECT we'll stay limping along by running the SELECT on a slave instead.
+    User.first
 
-    # this statement should
-    # put us into a bad state -- our @connection should be nil, as we'll fail to get a master connection
+    assert [$mysql_slave, $mysql_slave_2].include?(master_connection)
+  ensure
+    $mysql_master.up!
+  end
+
+  def test_recovering_after_losing_connection_to_the_master
+    User.create!
+    assert User.connection.instance_variable_get("@connection")
+
+    $mysql_master.down!
+    # trying to do an INSERT with the master down puts is into a precious state --
+    # we've got a nil @connection object.  There's two possible solutions here;
+    #
+    # 1 - substitute a slave connection in for the master object but raise an exception anyway
+    # 2 - deal with a nil connection object later
+    #
+    # opting for (2) now
+    #
     assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
       User.create!
     end
 
-    # now test that the next time through we ask for a read connection, we'll grudgingly give back the slave
-    User.first
+    assert_equal nil, User.connection.instance_variable_get("@connection")
 
-    assert [$mysql_slave, $mysql_slave_2].include?(master_connection)
+    # this proxies to @connection and has been the cause of some crashes
+    assert User.connection.quote("foo")
+  ensure
+    $mysql_master.up!
+  end
+
+  def test_recovering_after_the_master_is_back_up
+    User.create!
+    $mysql_master.down!
+
+    assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
+      User.create!
+    end
+    # bad state again.
 
     # now a dba or someone comes along and flips the read-only bit on the slave
     $mysql_slave.set_rw(true)

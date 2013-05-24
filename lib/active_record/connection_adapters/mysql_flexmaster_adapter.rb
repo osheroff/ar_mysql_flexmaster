@@ -68,6 +68,15 @@ module ActiveRecord
         end
       end
 
+      # after a cluster recovers from a bad state, an insert or SELECT will bring us back
+      # into sanity, but sometimes would we never get there and would get stuck crashing in this function instead.
+      def quote(*args)
+        if !@connection
+          soft_verify
+        end
+        super
+      end
+
       def current_host
         @connection.query_options[:host]
       end
