@@ -229,6 +229,14 @@ class TestArFlexmaster < Test::Unit::TestCase
     $mysql_master.up!
   end
 
+  def test_quote_string_should_recover_connection
+    User.create!
+    assert User.connection.instance_variable_get("@connection")
+    User.connection.instance_variable_set("@connection", nil)
+
+    assert User.connection.quote_string("foo")
+  end
+
   def test_recovering_after_the_master_is_back_up
     User.create!
     $mysql_master.down!

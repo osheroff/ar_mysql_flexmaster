@@ -77,6 +77,13 @@ module ActiveRecord
         super
       end
 
+      def quote_string(*args)
+        if !@connection
+          soft_verify
+        end
+        super
+      end
+
       def current_host
         @connection.query_options[:host]
       end
