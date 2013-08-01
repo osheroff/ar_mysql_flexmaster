@@ -1,7 +1,7 @@
 PATH
   remote: /Users/ben/src/ar_mysql_flexmaster
   specs:
-    ar_mysql_flexmaster (0.3.1)
+    ar_mysql_flexmaster (0.4.4)
       activerecord
       activesupport
       mysql2
@@ -41,6 +41,7 @@ GEM
       rake
     arel (3.0.2)
     builder (3.0.4)
+    bump (0.4.2)
     columnize (0.3.6)
     debugger (1.5.0)
       columnize (>= 0.3.1)
@@ -98,7 +99,6 @@ GEM
       polyglot
       polyglot (>= 0.3.1)
     tzinfo (0.3.37)
-    yaggy (0.1.7)
 
 PLATFORMS
   ruby
@@ -106,8 +106,8 @@ PLATFORMS
 DEPENDENCIES
   appraisal
   ar_mysql_flexmaster!
+  bump
   debugger (~> 1.5.0)
   mysql2 (~> 0.3.0)
   mysql_isolated_server (~> 0.1.1)
   rails (~> 3.2.0)
-  yaggy
