@@ -16,3 +16,4 @@ matrix:
       gemfile: gemfiles/rails2.gemfile
     - rvm: 2.1
       gemfile: gemfiles/rails3.gemfile
+bundler_args: --no-deployment
