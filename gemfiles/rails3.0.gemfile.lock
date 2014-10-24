@@ -36,10 +36,6 @@ GEM
       activemodel (= 3.0.20)
       activesupport (= 3.0.20)
     activesupport (3.0.20)
-    appraisal (1.0.2)
-      bundler
-      rake
-      thor (>= 0.14.0)
     arel (2.0.10)
     builder (2.1.2)
     bump (0.5.0)
@@ -83,14 +79,16 @@ GEM
       polyglot
       polyglot (>= 0.3.1)
     tzinfo (0.3.42)
+    wwtd (0.5.5)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
-  appraisal
   ar_mysql_flexmaster!
   bump
   mysql2 (~> 0.2.0)
   mysql_isolated_server (~> 0.1.1)
   rails (~> 3.0.0)
+  rake
+  wwtd

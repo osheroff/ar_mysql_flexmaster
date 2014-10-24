@@ -18,3 +18,4 @@ matrix:
     - rvm: 2.1
       gemfile: gemfiles/rails3.0.gemfile
 bundler_args: --no-deployment
+script: bundle exec rake test
