@@ -3,7 +3,6 @@ require 'ar_mysql_flexmaster'
 require 'active_record'
 require_relative 'boot_mysql_env'
 require 'test/unit'
-require 'debugger'
 
 File.open(File.dirname(File.expand_path(__FILE__)) + "/database.yml", "w+") do |f|
       f.write <<-EOL
