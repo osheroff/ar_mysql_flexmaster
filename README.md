@@ -1,3 +1,5 @@
+![](https://travis-ci.org/osheroff/ar_mysql_flexmaster.svg?branch=master)
+
 # Flexmaster
 
 Flexmaster is an adapter for ActiveRecord and mysql that allows an application node to find a master
