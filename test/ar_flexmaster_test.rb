@@ -107,7 +107,11 @@ class TestArFlexmaster < Minitest::Test
     end
     User.create(:name => "foo")
     assert_equal $mysql_slave, master_connection
-    assert User.first(:conditions => {:name => "foo"})
+    if ActiveRecord::VERSION::MAJOR >= 4
+      assert User.where(:name => "foo").exists?
+    else
+      assert User.first(:conditions => {:name => "foo"})
+    end
   end
 
   def test_should_hold_implicit_txs_and_then_continue
