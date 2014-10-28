@@ -17,4 +17,3 @@ test/version_tmp
 tmp
 .*.sw*
 test/database.yml
-gemfiles/*.lock

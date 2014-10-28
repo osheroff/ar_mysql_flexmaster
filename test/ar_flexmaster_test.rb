@@ -3,7 +3,6 @@ require 'ar_mysql_flexmaster'
 require 'active_record'
 require_relative 'boot_mysql_env'
 require 'test/unit'
-require 'debugger'
 
 File.open(File.dirname(File.expand_path(__FILE__)) + "/database.yml", "w+") do |f|
       f.write <<-EOL
@@ -32,7 +31,7 @@ reconnect_slave:
 end
 
 ActiveRecord::Base.configurations = YAML::load(IO.read(File.dirname(__FILE__) + '/database.yml'))
-ActiveRecord::Base.establish_connection("test")
+ActiveRecord::Base.establish_connection(:test)
 
 class User < ActiveRecord::Base
 end
@@ -59,7 +58,7 @@ $original_master_port = $mysql_master.port
 
 class TestArFlexmaster < Test::Unit::TestCase
   def setup
-    ActiveRecord::Base.establish_connection("test")
+    ActiveRecord::Base.establish_connection(:test)
 
     $mysql_master.set_rw(true) if $mysql_master
     $mysql_slave.set_rw(false) if $mysql_slave
