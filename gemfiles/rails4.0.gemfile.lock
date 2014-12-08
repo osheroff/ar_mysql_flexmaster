@@ -44,7 +44,7 @@ GEM
     mime-types (2.4.3)
     minitest (4.7.5)
     multi_json (1.10.1)
-    mysql2 (0.3.16)
+    mysql2 (0.3.11)
     mysql_isolated_server (0.1.1)
     rack (1.5.2)
     rack-test (0.6.2)
@@ -84,7 +84,7 @@ PLATFORMS
 DEPENDENCIES
   ar_mysql_flexmaster!
   bump
-  mysql2 (~> 0.3.0)
+  mysql2 (~> 0.3.0, <= 0.3.11)
   mysql_isolated_server (~> 0.1.1)
   rails (~> 4.0.0)
   rake

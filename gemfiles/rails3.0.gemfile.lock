@@ -49,7 +49,7 @@ GEM
       mime-types (~> 1.16)
       treetop (~> 1.4.8)
     mime-types (1.25.1)
-    mysql2 (0.2.23)
+    mysql2 (0.2.18)
     mysql_isolated_server (0.1.1)
     polyglot (0.3.5)
     rack (1.2.8)
@@ -87,7 +87,7 @@ PLATFORMS
 DEPENDENCIES
   ar_mysql_flexmaster!
   bump
-  mysql2 (~> 0.2.0)
+  mysql2 (~> 0.2.0, <= 0.2.18)
   mysql_isolated_server (~> 0.1.1)
   rails (~> 3.0.0)
   rake
