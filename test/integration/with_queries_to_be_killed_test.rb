@@ -21,7 +21,13 @@ class WithKillableQueries < Minitest::Test
     thread.join
 
     $mysql_master.reconnect!
-    assert_ro($mysql_master.connection, 'master', true)
+    begin
+      assert_ro($mysql_master.connection, 'master', true)
+    rescue Exception => e
+      puts $mysql_master.connection.inspect
+      system("ps aux | grep mysql")
+      raise
+    end
     assert_ro($mysql_slave.connection, 'slave', false)
   end
 end
