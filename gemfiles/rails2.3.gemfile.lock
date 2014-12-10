@@ -19,7 +19,7 @@ GEM
     activeresource (2.3.18)
       activesupport (= 2.3.18)
     activesupport (2.3.18)
-    bump (0.5.0)
+    bump (0.5.1)
     mysql2 (0.2.18)
     mysql_isolated_server (0.1.1)
     rack (1.1.6)
@@ -30,7 +30,7 @@ GEM
       activeresource (= 2.3.18)
       activesupport (= 2.3.18)
       rake (>= 0.8.3)
-    rake (10.3.2)
+    rake (10.4.2)
     wwtd (0.5.5)
 
 PLATFORMS
