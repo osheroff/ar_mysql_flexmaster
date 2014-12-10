@@ -167,6 +167,7 @@ class TestArFlexmaster < Minitest::Test
       h[port] = 1
       UserSlave.connection.reconnect!
     end
+    puts UserSlave.connection.inspect
     assert_equal 2, h.size
   end
 
