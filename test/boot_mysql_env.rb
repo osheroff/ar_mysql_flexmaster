@@ -34,6 +34,10 @@ $mysql_master.connection.query("GRANT ALL ON flexmaster_test.* to flex@localhost
 $mysql_master.connection.query("CREATE DATABASE flexmaster_test")
 $mysql_master.connection.query("CREATE TABLE flexmaster_test.users (id INT(10) NOT NULL AUTO_INCREMENT PRIMARY KEY, name varchar(20))")
 $mysql_master.connection.query("INSERT INTO flexmaster_test.users set name='foo'")
-
 $mysql_slave.set_rw(false)
+$mysql_slave_2.set_rw(false)
+
+# let replication for the grants and such flow down.  bleh.
+sleep 3
+
 sleep if __FILE__ == $0

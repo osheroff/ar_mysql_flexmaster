@@ -18,6 +18,7 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency("activerecord")
   gem.add_runtime_dependency("activesupport")
   gem.add_development_dependency("wwtd")
+  gem.add_development_dependency("minitest")
   gem.add_development_dependency("bump")
-  gem.add_development_dependency("mysql_isolated_server", "~> 0.1.1")
+  gem.add_development_dependency("mysql_isolated_server", "~> 0.5")
 end
