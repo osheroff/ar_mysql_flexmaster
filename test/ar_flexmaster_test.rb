@@ -1,8 +1,13 @@
 require 'bundler/setup'
 require 'ar_mysql_flexmaster'
 require 'active_record'
+require 'minitest/autorun'
+
+if !defined?(Minitest::Test)
+  Minitest::Test = MiniTest::Unit::TestCase
+end
+
 require_relative 'boot_mysql_env'
-require 'test/unit'
 
 File.open(File.dirname(File.expand_path(__FILE__)) + "/database.yml", "w+") do |f|
       f.write <<-EOL
@@ -56,7 +61,7 @@ end
 
 $original_master_port = $mysql_master.port
 
-class TestArFlexmaster < Test::Unit::TestCase
+class TestArFlexmaster < Minitest::Test
   def setup
     ActiveRecord::Base.establish_connection(:test)
 
@@ -153,7 +158,7 @@ class TestArFlexmaster < Test::Unit::TestCase
 
   def test_should_choose_a_random_slave_connection
     h = {}
-    10.times do
+    20.times do
       port = UserSlave.connection.execute("show global variables like 'port'").first.last.to_i
       h[port] = 1
       UserSlave.connection.reconnect!
