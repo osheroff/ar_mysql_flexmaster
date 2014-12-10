@@ -151,16 +151,6 @@ class TestArFlexmaster < Test::Unit::TestCase
     end
   end
 
-  def test_should_choose_a_random_slave_connection
-    h = {}
-    10.times do
-      port = UserSlave.connection.execute("show global variables like 'port'").first.last.to_i
-      h[port] = 1
-      UserSlave.connection.reconnect!
-    end
-    assert_equal 2, h.size
-  end
-
   def test_should_expose_the_current_master_and_port
     cx = ActiveRecord::Base.connection
     assert_equal "127.0.0.1", cx.current_host
