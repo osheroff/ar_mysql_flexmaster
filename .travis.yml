@@ -1,12 +1,22 @@
+language: ruby
+
 rvm:
   - 1.9.3
   - 2.0
   - 2.1
+
 gemfile:
   - gemfiles/rails2.3.gemfile
   - gemfiles/rails3.0.gemfile
   - gemfiles/rails3.2.gemfile
   - gemfiles/rails4.0.gemfile
+
+sudo: false
+
+bundler_args: --no-deployment
+
+script: bundle exec rake test
+
 matrix:
   exclude:
     - rvm: 2.0
@@ -17,5 +27,3 @@ matrix:
       gemfile: gemfiles/rails2.3.gemfile
     - rvm: 2.1
       gemfile: gemfiles/rails3.0.gemfile
-bundler_args: --no-deployment
-script: bundle exec rake test
