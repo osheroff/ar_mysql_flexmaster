@@ -1,8 +1,13 @@
 require 'bundler/setup'
 require 'ar_mysql_flexmaster'
 require 'active_record'
+require 'minitest/autorun'
+
+if !defined?(Minitest::Test)
+  Minitest::Test = MiniTest::Unit::TestCase
+end
+
 require_relative 'boot_mysql_env'
-require 'test/unit'
 
 File.open(File.dirname(File.expand_path(__FILE__)) + "/database.yml", "w+") do |f|
       f.write <<-EOL
@@ -56,7 +61,7 @@ end
 
 $original_master_port = $mysql_master.port
 
-class TestArFlexmaster < Test::Unit::TestCase
+class TestArFlexmaster < Minitest::Test
   def setup
     ActiveRecord::Base.establish_connection(:test)
 
@@ -102,7 +107,11 @@ class TestArFlexmaster < Test::Unit::TestCase
     end
     User.create(:name => "foo")
     assert_equal $mysql_slave, master_connection
-    assert User.first(:conditions => {:name => "foo"})
+    if ActiveRecord::VERSION::MAJOR >= 4
+      assert User.where(:name => "foo").exists?
+    else
+      assert User.first(:conditions => {:name => "foo"})
+    end
   end
 
   def test_should_hold_implicit_txs_and_then_continue
@@ -149,16 +158,6 @@ class TestArFlexmaster < Test::Unit::TestCase
     100.times do
       u = User.first
     end
-  end
-
-  def test_should_choose_a_random_slave_connection
-    h = {}
-    10.times do
-      port = UserSlave.connection.execute("show global variables like 'port'").first.last.to_i
-      h[port] = 1
-      UserSlave.connection.reconnect!
-    end
-    assert_equal 2, h.size
   end
 
   def test_should_expose_the_current_master_and_port
