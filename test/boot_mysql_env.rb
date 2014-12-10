@@ -38,6 +38,13 @@ $mysql_slave.set_rw(false)
 $mysql_slave_2.set_rw(false)
 
 # let replication for the grants and such flow down.  bleh.
-sleep 3
+repl_sync = false
+while !repl_sync
+  repl_sync = [[$mysql_master, $mysql_slave], [$mysql_slave, $mysql_slave_2]].all? do |master, slave|
+    master_pos = master.connection.query("show master status").to_a.first["Position"]
+    slave.connection.query("show slave status").to_a.first["Exec_Master_Log_Pos"] == master_pos
+  end
+  sleep 1
+end
 
 sleep if __FILE__ == $0
