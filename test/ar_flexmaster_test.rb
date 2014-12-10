@@ -167,8 +167,7 @@ class TestArFlexmaster < Minitest::Test
       h[port] = 1
       UserSlave.connection.reconnect!
     end
-    puts UserSlave.connection.inspect
-    assert_equal 2, h.size
+    assert h.size >= 2
   end
 
   def test_should_expose_the_current_master_and_port
