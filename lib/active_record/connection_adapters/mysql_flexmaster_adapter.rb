@@ -29,9 +29,9 @@ module ActiveRecord
       class NoServerAvailableException < StandardError; end
 
       CHECK_EVERY_N_SELECTS = 10
-      DEFAULT_CONNECT_TIMEOUT = 2
+      DEFAULT_CONNECT_TIMEOUT = 1
       DEFAULT_CONNECT_RETRIES = 2
-      DEFAULT_TX_HOLD_TIMEOUT = 6
+      DEFAULT_TX_HOLD_TIMEOUT = 5
 
       def initialize(logger, config)
         @select_counter = 0
