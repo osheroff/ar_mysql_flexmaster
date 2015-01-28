@@ -29,8 +29,9 @@ module ActiveRecord
       class NoServerAvailableException < StandardError; end
 
       CHECK_EVERY_N_SELECTS = 10
-      DEFAULT_CONNECT_TIMEOUT = 5
-      DEFAULT_TX_HOLD_TIMEOUT = 5
+      DEFAULT_CONNECT_TIMEOUT = 2
+      DEFAULT_CONNECT_RETRIES = 2
+      DEFAULT_TX_HOLD_TIMEOUT = 6
 
       def initialize(logger, config)
         @select_counter = 0
@@ -38,6 +39,7 @@ module ActiveRecord
         @rw = config[:slave] ? :read : :write
         @tx_hold_timeout = @config[:tx_hold_timeout] || DEFAULT_TX_HOLD_TIMEOUT
         @connection_timeout = @config[:connection_timeout] || DEFAULT_CONNECT_TIMEOUT
+        @connection_retries = @config[:connection_retries] || DEFAULT_CONNECT_RETRIES
 
         connection = find_correct_host(@rw)
 
@@ -245,6 +247,7 @@ module ActiveRecord
       end
 
       def initialize_connection(host, port)
+        retries = 0
         begin
           Timeout::timeout(@connection_timeout) do
             cfg = @config.merge(:host => host, :port => port)
@@ -252,12 +255,14 @@ module ActiveRecord
               cx.query_options.merge!(:as => :array)
             end
           end
-        rescue Mysql2::Error => e
-          collected_errors << e
-          nil
-        rescue Timeout::Error => e
-          collected_errors << e
-          nil
+        rescue Mysql2::Error, Timeout::Error => e
+          if retries < @connection_retries
+            retries += 1
+            retry
+          else
+            collected_errors << e
+            nil
+          end
         end
       end
 
