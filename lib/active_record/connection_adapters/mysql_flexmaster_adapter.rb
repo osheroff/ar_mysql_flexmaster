@@ -28,18 +28,18 @@ module ActiveRecord
       class TooManyMastersException < StandardError; end
       class NoServerAvailableException < StandardError; end
 
-      CHECK_EVERY_N_SELECTS = 10
-      DEFAULT_CONNECT_TIMEOUT = 1
-      DEFAULT_CONNECT_RETRIES = 2
-      DEFAULT_TX_HOLD_TIMEOUT = 5
+      CHECK_EVERY_N_SELECTS    = 10
+      DEFAULT_CONNECT_TIMEOUT  = 1
+      DEFAULT_CONNECT_ATTEMPTS = 3
+      DEFAULT_TX_HOLD_TIMEOUT  = 5
 
       def initialize(logger, config)
         @select_counter = 0
         @config = config
         @rw = config[:slave] ? :read : :write
-        @tx_hold_timeout = @config[:tx_hold_timeout] || DEFAULT_TX_HOLD_TIMEOUT
-        @connection_timeout = @config[:connection_timeout] || DEFAULT_CONNECT_TIMEOUT
-        @connection_retries = @config[:connection_retries] || DEFAULT_CONNECT_RETRIES
+        @tx_hold_timeout     = @config[:tx_hold_timeout]     || DEFAULT_TX_HOLD_TIMEOUT
+        @connection_timeout  = @config[:connection_timeout]  || DEFAULT_CONNECT_TIMEOUT
+        @connection_attempts = @config[:connection_attempts] || DEFAULT_CONNECT_ATTEMPTS
 
         connection = find_correct_host(@rw)
 
@@ -247,7 +247,7 @@ module ActiveRecord
       end
 
       def initialize_connection(host, port)
-        retries = 0
+        attempts = 1
         begin
           Timeout::timeout(@connection_timeout) do
             cfg = @config.merge(:host => host, :port => port)
@@ -256,8 +256,8 @@ module ActiveRecord
             end
           end
         rescue Mysql2::Error, Timeout::Error => e
-          if retries < @connection_retries
-            retries += 1
+          if attempts < @connection_attempts
+            attempts += 1
             retry
           else
             collected_errors << e
