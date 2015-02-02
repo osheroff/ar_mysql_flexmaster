@@ -2,6 +2,7 @@ require 'bundler/setup'
 require 'ar_mysql_flexmaster'
 require 'active_record'
 require 'minitest/autorun'
+require 'mocha/mini_test'
 
 if !defined?(Minitest::Test)
   Minitest::Test = MiniTest::Unit::TestCase
@@ -286,6 +287,18 @@ class TestArFlexmaster < Minitest::Test
     $mysql_slave_2.up!
   end
 
+  def test_connection_multiple_attempts
+    # We're simulating connection timeout, so mocha's Expectation#times doesn't register the calls
+    attempts = 0
+    null_logger = Logger.new('/dev/null')
+    config = { hosts: ['localhost'], connection_timeout: 0.01, connection_attempts: 5 }
+
+    Mysql2::Client.stubs(:new).with { attempts += 1; sleep 1 }
+    assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
+      ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter.new(null_logger, config)
+    end
+    assert_equal 5, attempts
+  end
 
   private
 
