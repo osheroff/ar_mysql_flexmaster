@@ -133,7 +133,7 @@ def swap_thread
     master = open_cx($old_master)
     slave = open_cx($new_master)
     set_ro(master)
-    slave.query("slave stop")
+    slave.query("STOP SLAVE")
     new_master_info = slave.query("show master status").first
     set_rw(slave)
     $swapped_ok = true
@@ -153,7 +153,7 @@ def rehome_master(info, start_slave)
   port_clause = port ? "master_port = #{port}," : ""
   cx = open_cx($old_master)
   cx.query("change master to master_host='#{host}', #{port_clause} master_log_file = '#{info['File']}', master_log_pos=#{info['Position']}")
-  cx.query("slave start") if start_slave
+  cx.query("START SLAVE") if start_slave
 end
 
 ask_for_password
