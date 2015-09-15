@@ -35,8 +35,8 @@ def usage
 end
 
 $old_master, $new_master, $username = *ARGV
-unless $old_master && $new_master && $username 
-  usage 
+unless $old_master && $new_master && $username
+  usage
 end
 
 
@@ -47,11 +47,11 @@ def open_cx(host)
 end
 
 def set_rw(cx)
-  cx.query("SET GLOBAL READ_ONLY=0")  
+  cx.query("SET GLOBAL READ_ONLY=0")
 end
 
 def set_ro(cx)
-  cx.query("SET GLOBAL READ_ONLY=1")  
+  cx.query("SET GLOBAL READ_ONLY=1")
 end
 
 $swapped_ok = false
@@ -85,20 +85,20 @@ def preflight_check
   slave_info = slave_cx.query("show slave status").first
   fail("no slave configured!") if slave_info.nil?
   fail("slave is stopped!") unless slave_info['Slave_IO_Running'] == 'Yes' && slave_info['Slave_SQL_Running'] == 'Yes'
-  fail("slave is delayed") if slave_info['Seconds_Behind_Master'].nil? || slave_info['Seconds_Behind_Master'] > 0  
+  fail("slave is delayed") if slave_info['Seconds_Behind_Master'].nil? || slave_info['Seconds_Behind_Master'] > 0
 
   masters_slave_info = cx.query("show slave status").first
   if $rehome_master && (masters_slave_info.nil? || masters_slave_info['Master_User'] == 'test')
     fail("I can't rehome the original master -- it has no slave user or password.")
   end
- 
+
   master_ip, slave_master_ip = [$old_master, slave_info['Master_Host']].map do |h|
     h = h.split(':').first
-    Socket.gethostbyname(h)[3].unpack("CCCC") 
+    Socket.gethostbyname(h)[3].unpack("CCCC")
   end
 
   if master_ip != slave_master_ip
-    fail("slave does not appear to be replicating off master! (master: #{master_ip.join('.')}, slave's master: #{slave_master_ip.join('.')})") 
+    fail("slave does not appear to be replicating off master! (master: #{master_ip.join('.')}, slave's master: #{slave_master_ip.join('.')})")
   end
 end
 
@@ -122,14 +122,14 @@ end
 
 def kill_query!(cx, id)
   begin
-    cx.query("kill #{id}") 
+    cx.query("kill #{id}")
   rescue Mysql2::Error => e
     raise e unless e.errno == 1094 # unknown thread id error
   end
 end
 
 def swap_thread
-  Thread.new do 
+  Thread.new do
     master = open_cx($old_master)
     slave = open_cx($new_master)
     set_ro(master)
@@ -139,7 +139,7 @@ def swap_thread
     $swapped_ok = true
     puts "Swapped #{$old_master} and #{$new_master}"
     puts "New master information at time of swap: "
-    pp new_master_info 
+    pp new_master_info
     if $rehome_master
       rehome_master(new_master_info, $start_slave)
     end
@@ -165,6 +165,3 @@ threads << swap_thread
 threads.each(&:join)
 
 rehome_master
-
-
-
