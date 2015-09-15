@@ -160,8 +160,8 @@ ask_for_password
 preflight_check
 
 threads = []
-threads << process_kill_thread
 threads << swap_thread
+threads << process_kill_thread
 threads.each(&:join)
 
 rehome_master
