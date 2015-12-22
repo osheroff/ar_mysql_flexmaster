@@ -3,6 +3,7 @@ require 'ar_mysql_flexmaster'
 require 'active_record'
 require 'minitest/autorun'
 require 'mocha/mini_test'
+require 'logger'
 
 if !defined?(Minitest::Test)
   Minitest::Test = MiniTest::Unit::TestCase
