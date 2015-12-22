@@ -10,9 +10,17 @@ gemfile:
   - gemfiles/rails4.0.gemfile
   - gemfiles/rails4.1.gemfile
   - gemfiles/rails4.2.gemfile
+  - gemfiles/rails5.0.gemfile
 
 sudo: false
 
 bundler_args: --no-deployment
 
 script: bundle exec rake test
+
+matrix:
+  exclude:
+    - rvm: 2.0.0
+      gemfile: gemfiles/rails5.0.gemfile
+    - rvm: 2.1.8
+      gemfile: gemfiles/rails5.0.gemfile
