@@ -2,6 +2,5 @@ source "https://rubygems.org"
 
 gemspec :path => "../"
 
-gem "rake"
 gem "rails", "~> 2.3.15"
-gem "mysql2", "~> 0.2.0", "<= 0.2.18"
+gem "mysql2", "~> 0.2.0"
