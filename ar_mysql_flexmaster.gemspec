@@ -17,6 +17,7 @@ Gem::Specification.new do |gem|
   gem.add_runtime_dependency("mysql2")
   gem.add_runtime_dependency("activerecord")
   gem.add_runtime_dependency("activesupport")
+  gem.add_development_dependency("rake")
   gem.add_development_dependency("wwtd")
   gem.add_development_dependency("minitest")
   gem.add_development_dependency("mocha", "~> 1.1.0")
