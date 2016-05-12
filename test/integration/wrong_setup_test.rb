@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require_relative "../integration_helper"
 class WrongSetupTest < Minitest::Test
   def assert_script_failed
