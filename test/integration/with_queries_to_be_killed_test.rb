@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require_relative "../integration_helper"
 class WithKillableQueries < Minitest::Test
   def test_with_queries_to_be_killed
