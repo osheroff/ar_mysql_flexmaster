@@ -93,7 +93,7 @@ class TestArFlexmaster < Minitest::Test
 
     $mysql_master.set_rw(false)
     start_time = Time.now.to_i
-    e = assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
+    assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
       User.create(:name => "foo")
     end
     end_time = Time.now.to_i
@@ -145,7 +145,7 @@ class TestArFlexmaster < Minitest::Test
     $mysql_slave.set_rw(true)
     assert_equal $mysql_master, master_connection
     100.times do
-      u = User.first
+      User.first
     end
     assert_equal $mysql_slave, master_connection
   end
@@ -158,7 +158,7 @@ class TestArFlexmaster < Minitest::Test
     $mysql_slave.set_rw(false)
     assert_equal $mysql_master, master_connection
     100.times do
-      u = User.first
+      User.first
     end
   end
 
@@ -221,7 +221,7 @@ class TestArFlexmaster < Minitest::Test
       User.create!
     end
 
-    assert_equal nil, User.connection.instance_variable_get("@connection")
+    assert_nil User.connection.instance_variable_get("@connection") if ActiveRecord::VERSION::STRING < '5.1'
 
     # this proxies to @connection and has been the cause of some crashes
     assert User.connection.quote("foo")
@@ -232,7 +232,7 @@ class TestArFlexmaster < Minitest::Test
   def test_quote_string_should_recover_connection
     User.create!
     assert User.connection.instance_variable_get("@connection")
-    User.connection.instance_variable_set("@connection", nil)
+    User.connection.instance_variable_get("@connection").close
 
     assert User.connection.quote_string("foo")
   end
