@@ -10,8 +10,8 @@ Thread.abort_on_exception = false
 
 opts = GetoptLong.new(
   ["--password",      "-p", GetoptLong::REQUIRED_ARGUMENT],
-  ["--rehome-master",   "-r", GetoptLong::NO_ARGUMENT],
-  ["--start-slave",   "-s", GetoptLong::NO_ARGUMENT],
+  ["--rehome-master", "-r", GetoptLong::NO_ARGUMENT],
+  ["--start-slave",   "-s", GetoptLong::NO_ARGUMENT]
 )
 
 opts.each do |opt, arg|
@@ -38,7 +38,6 @@ $old_master, $new_master, $username = *ARGV
 unless $old_master && $new_master && $username
   usage
 end
-
 
 def open_cx(host)
   host, port = host.split(":")
@@ -129,11 +128,9 @@ def wait_for_slave_catchup(master, slave)
 end
 
 def kill_query!(cx, id)
-  begin
-    cx.query("kill #{id}")
-  rescue Mysql2::Error => e
-    raise e unless e.errno == 1094 # unknown thread id error
-  end
+  cx.query("kill #{id}")
+rescue Mysql2::Error => e
+  raise e unless e.errno == 1094 # unknown thread id error
 end
 
 def swap_thread

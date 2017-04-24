@@ -116,8 +116,8 @@ module ActiveRecord
         end
       end
 
-      AR_MESSAGES = [ /^Mysql2::Error: MySQL server has gone away/,
-                      /^Mysql2::Error: Can't connect to MySQL server/ ]
+      AR_MESSAGES = [/^Mysql2::Error: MySQL server has gone away/,
+                     /^Mysql2::Error: Can't connect to MySQL server/]
       def retryable_error?(e)
         case e
         when Mysql2::Error
@@ -249,7 +249,7 @@ module ActiveRecord
       def initialize_connection(host, port)
         attempts = 1
         begin
-          Timeout::timeout(@connection_timeout) do
+          Timeout.timeout(@connection_timeout) do
             cfg = @config.merge(:host => host, :port => port)
             Mysql2::Client.new(cfg).tap do |cx|
               cx.query_options.merge!(:as => :array)
