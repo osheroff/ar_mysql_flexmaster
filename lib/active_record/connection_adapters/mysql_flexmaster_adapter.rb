@@ -10,9 +10,6 @@ module ActiveRecord
 
       # fallback to :host or :localhost
       config[:hosts] ||= config.key?(:host) ? [config[:host]] : ['localhost']
-
-      hosts = config[:hosts] || [config[:host]]
-
       config[:username] = 'root' if config[:username].nil?
 
       if Mysql2::Client.const_defined? :FOUND_ROWS
@@ -194,12 +191,14 @@ module ActiveRecord
         sleep_interval = 0.1
         timeout_at = Time.now.to_f + @tx_hold_timeout
 
-        begin
+        loop do
           @connection = find_correct_host(@rw)
           return if @connection
 
           sleep(sleep_interval)
-        end while Time.now.to_f < timeout_at
+
+          break unless Time.now.to_f < timeout_at
+        end
 
         raise_no_server_available!
       end

@@ -121,7 +121,7 @@ def process_kill_thread
 end
 
 def wait_for_slave_catchup(master, slave)
-  while true
+  loop do
     master_info = master.query("show master status").first
     slave_info = slave.query("show slave status").first
     break if master_info['Position'] <= slave_info['Exec_Master_Log_Pos']

@@ -94,7 +94,7 @@ class TestArFlexmaster < Minitest::Test
 
     $mysql_master.set_rw(false)
     start_time = Time.now.to_i
-    e = assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
+    assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
       User.create(:name => "foo")
     end
     end_time = Time.now.to_i
@@ -146,7 +146,7 @@ class TestArFlexmaster < Minitest::Test
     $mysql_slave.set_rw(true)
     assert_equal $mysql_master, master_connection
     100.times do
-      u = User.first
+      User.first
     end
     assert_equal $mysql_slave, master_connection
   end
@@ -159,7 +159,7 @@ class TestArFlexmaster < Minitest::Test
     $mysql_slave.set_rw(false)
     assert_equal $mysql_master, master_connection
     100.times do
-      u = User.first
+      User.first
     end
   end
 
