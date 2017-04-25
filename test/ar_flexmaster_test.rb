@@ -13,7 +13,7 @@ end
 require_relative 'boot_mysql_env'
 
 File.open(File.dirname(File.expand_path(__FILE__)) + "/database.yml", "w+") do |f|
-      f.write <<-EOL
+  f.write <<-EOL
 common: &common
   adapter: mysql_flexmaster
   username: flex
@@ -38,7 +38,7 @@ reconnect_slave:
       EOL
 end
 
-ActiveRecord::Base.configurations = YAML::load(IO.read(File.dirname(__FILE__) + '/database.yml'))
+ActiveRecord::Base.configurations = YAML.load(IO.read(File.dirname(__FILE__) + '/database.yml'))
 ActiveRecord::Base.establish_connection(:test)
 
 class User < ActiveRecord::Base
@@ -94,7 +94,7 @@ class TestArFlexmaster < Minitest::Test
 
     $mysql_master.set_rw(false)
     start_time = Time.now.to_i
-    e = assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
+    assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
       User.create(:name => "foo")
     end
     end_time = Time.now.to_i
@@ -113,7 +113,7 @@ class TestArFlexmaster < Minitest::Test
     if ActiveRecord::VERSION::MAJOR >= 4
       assert User.where(:name => "foo").exists?
     else
-      assert User.first(:conditions => {:name => "foo"})
+      assert User.first(:conditions => { :name => "foo" })
     end
   end
 
@@ -146,7 +146,7 @@ class TestArFlexmaster < Minitest::Test
     $mysql_slave.set_rw(true)
     assert_equal $mysql_master, master_connection
     100.times do
-      u = User.first
+      User.first
     end
     assert_equal $mysql_slave, master_connection
   end
@@ -159,7 +159,7 @@ class TestArFlexmaster < Minitest::Test
     $mysql_slave.set_rw(false)
     assert_equal $mysql_master, master_connection
     100.times do
-      u = User.first
+      User.first
     end
   end
 
@@ -295,7 +295,10 @@ class TestArFlexmaster < Minitest::Test
     null_logger = Logger.new('/dev/null')
     config = { hosts: ['localhost'], connection_timeout: 0.01, connection_attempts: 5 }
 
-    Mysql2::Client.stubs(:new).with { attempts += 1; sleep 1 }
+    Mysql2::Client.stubs(:new).with do
+      attempts += 1
+      sleep 1
+    end
     assert_raises(ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter::NoServerAvailableException) do
       ActiveRecord::ConnectionAdapters::MysqlFlexmasterAdapter.new(null_logger, config)
     end

@@ -13,4 +13,3 @@ class NoTrafficTest < Minitest::Test
     assert_ro($mysql_slave.connection, 'master', false)
   end
 end
-

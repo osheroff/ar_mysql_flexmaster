@@ -10,9 +10,6 @@ module ActiveRecord
 
       # fallback to :host or :localhost
       config[:hosts] ||= config.key?(:host) ? [config[:host]] : ['localhost']
-
-      hosts = config[:hosts] || [config[:host]]
-
       config[:username] = 'root' if config[:username].nil?
 
       if Mysql2::Client.const_defined? :FOUND_ROWS
@@ -119,8 +116,8 @@ module ActiveRecord
         end
       end
 
-      AR_MESSAGES = [ /^Mysql2::Error: MySQL server has gone away/,
-                      /^Mysql2::Error: Can't connect to MySQL server/ ]
+      AR_MESSAGES = [/^Mysql2::Error: MySQL server has gone away/,
+                     /^Mysql2::Error: Can't connect to MySQL server/]
       def retryable_error?(e)
         case e
         when Mysql2::Error
@@ -194,12 +191,14 @@ module ActiveRecord
         sleep_interval = 0.1
         timeout_at = Time.now.to_f + @tx_hold_timeout
 
-        begin
+        loop do
           @connection = find_correct_host(@rw)
           return if @connection
 
           sleep(sleep_interval)
-        end while Time.now.to_f < timeout_at
+
+          break unless Time.now.to_f < timeout_at
+        end
 
         raise_no_server_available!
       end
@@ -250,7 +249,7 @@ module ActiveRecord
       def initialize_connection(host, port)
         attempts = 1
         begin
-          Timeout::timeout(@connection_timeout) do
+          Timeout.timeout(@connection_timeout) do
             cfg = @config.merge(:host => host, :port => port)
             Mysql2::Client.new(cfg).tap do |cx|
               cx.query_options.merge!(:as => :array)

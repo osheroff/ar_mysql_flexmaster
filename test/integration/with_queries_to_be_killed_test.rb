@@ -12,7 +12,7 @@ class WithKillableQueries < Minitest::Test
         $mysql_master.connection.query("update flexmaster_test.users set name=sleep(600)")
         assert false, "Query did not get killed!  Bad."
         exit 1
-      rescue Exception => e
+      rescue StandardError => e
         puts e
       end
     }
